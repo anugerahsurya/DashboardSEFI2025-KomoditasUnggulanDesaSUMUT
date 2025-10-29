@@ -11,3 +11,4 @@ matplotlib
 folium
 streamlit-folium
 joblib
+openpyxl
