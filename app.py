@@ -82,8 +82,8 @@ else:
 # Filter Data POI berdasarkan Kabupaten yang dipilih di sidebar
 if selected_kabupaten:
     # Memastikan kolom 'Kabupaten' ada di poi_df_full sebelum memfilter
-    if 'Kabupaten' in poi_df_full.columns:
-        poi_df = poi_df_full[poi_df_full['Kabupaten'].isin(selected_kabupaten)].copy()
+    if 'kabupaten' in poi_df_full.columns:
+        poi_df = poi_df_full[poi_df_full['kabupaten'].isin(selected_kabupaten)].copy()
     else:
         poi_df = poi_df_full.copy() 
 else:
