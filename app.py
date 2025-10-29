@@ -37,7 +37,7 @@ def load_data(shp_file_path, poi_excel_path):
         # Pastikan kolom 'Kabupaten' dan 'Kategori_POI' ada
         if 'Kategori_POI' not in poi_df.columns:
              poi_df['Kategori_POI'] = 'Umum' 
-        if 'Kabupaten' not in poi_df.columns:
+        if 'kabupaten' not in poi_df.columns:
             st.warning("Kolom 'Kabupaten' tidak ditemukan di DataPOI.xlsx. Filter POI mungkin tidak berfungsi.")
             poi_df['Kabupaten'] = 'Unknown' 
     except FileNotFoundError:
