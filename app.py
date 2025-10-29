@@ -32,14 +32,19 @@ def load_data(shp_file_path, poi_excel_path):
     try:
         poi_df = pd.read_excel(poi_excel_path)
         poi_df = poi_df.dropna(subset=['longitude', 'latitude'])
+        # Pastikan kolom 'Kabupaten' dan 'Kategori_POI' ada
         if 'Kategori_POI' not in poi_df.columns:
              poi_df['Kategori_POI'] = 'Umum' 
+        if 'Kabupaten' not in poi_df.columns:
+            st.warning("Kolom 'Kabupaten' tidak ditemukan di DataPOI.xlsx. Filter POI mungkin tidak berfungsi.")
+            # Buat kolom dummy agar kode tidak error jika kolom 'Kabupaten' di poi_df tidak ada
+            poi_df['Kabupaten'] = 'Unknown' 
     except FileNotFoundError:
         st.error(f"File POI tidak ditemukan di path: {poi_excel_path}. Menggunakan DataFrame POI kosong.")
-        poi_df = pd.DataFrame(columns=['longitude', 'latitude', 'name', 'Kategori_POI'])
+        poi_df = pd.DataFrame(columns=['longitude', 'latitude', 'name', 'Kategori_POI', 'Kabupaten'])
     except Exception as e:
         st.error(f"Gagal memuat file Excel POI: {e}. Menggunakan DataFrame POI kosong.")
-        poi_df = pd.DataFrame(columns=['longitude', 'latitude', 'name', 'Kategori_POI'])
+        poi_df = pd.DataFrame(columns=['longitude', 'latitude', 'name', 'Kategori_POI', 'Kabupaten'])
     
     return gdf, poi_df
 
@@ -55,9 +60,9 @@ except Exception as e:
 
 
 # --- 2. Kolom-kolom Sidebar (Filter) ---
-st.sidebar.header("Pengaturan Filter Wilayah")
+st.sidebar.header("Pengaturan Filter")
 
-# Filter Kabupaten/Kota 
+# Filter Kabupaten/Kota (TETAP ADA)
 kabupaten_list = sorted(data_gdf['Kabupaten'].unique().tolist())
 selected_kabupaten = st.sidebar.multiselect(
     "Pilih Kabupaten/Kota",
@@ -68,13 +73,21 @@ selected_kabupaten = st.sidebar.multiselect(
 # Filter data GeoPandas
 if selected_kabupaten:
     filtered_gdf = data_gdf[data_gdf['Kabupaten'].isin(selected_kabupaten)].copy()
-    st.sidebar.success(f"{len(selected_kabupaten)} Kabupaten/Kota terpilih.")
+    st.sidebar.success(f"✔️ {len(selected_kabupaten)} Kabupaten/Kota terpilih.")
 else:
     st.sidebar.warning("Silakan pilih minimal satu Kabupaten/Kota.")
     filtered_gdf = gpd.GeoDataFrame([], columns=data_gdf.columns, crs=data_gdf.crs)
 
-# Data POI (TIDAK DIFILTER)
-poi_df = poi_df_full.copy()
+# Filter Data POI berdasarkan Kabupaten yang dipilih di sidebar
+if selected_kabupaten:
+    # Memastikan kolom 'Kabupaten' ada di poi_df_full sebelum memfilter
+    if 'Kabupaten' in poi_df_full.columns:
+        poi_df = poi_df_full[poi_df_full['Kabupaten'].isin(selected_kabupaten)].copy()
+    else:
+        poi_df = poi_df_full.copy() 
+else:
+    poi_df = pd.DataFrame(columns=poi_df_full.columns)
+
 
 is_data_present = not filtered_gdf.empty
 default_lat = 2.0 
@@ -92,9 +105,9 @@ if is_data_present:
     total_komoditas_unik = filtered_gdf['Prediksi'].nunique()
     
     col_kpi_1, col_kpi_2, col_kpi_3 = st.columns(3)
-    col_kpi_1.metric("Total Desa Terpilih", f"{total_desa:,} Unit")
-    col_kpi_2.metric("Total POI di Desa", f"{int(total_poi):,} Titik")
-    col_kpi_3.metric("Jenis Komoditas Unggulan", f"{total_komoditas_unik} Kategori")
+    col_kpi_1.metric("Total Desa Terpilih", f"{total_desa:,}")
+    col_kpi_2.metric("Total POI di Peta", f"{len(poi_df):,}") 
+    col_kpi_3.metric("Jenis Komoditas Unik", f"{total_komoditas_unik}")
 st.markdown("---")
 
 # Bar Charts
@@ -104,13 +117,12 @@ detail_col = st.container()
 
 # --- 4. Visualisasi Peta Choropleth INTERAKTIF (Menggunakan Folium) ---
 with map_col:
-    st.header("Peta Desa Interaktif - Klik untuk Detail Data")
+    st.header("Peta Desa Interaktif - Klik untuk Detail")
 
     m = folium.Map(
         location=[default_lat, default_lon], 
         zoom_start=8, 
         scrollWheelZoom=True,
-        # Menggunakan Esri World Imagery untuk latar satelit
         tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         attr='Esri World Imagery' 
     )
@@ -121,14 +133,16 @@ with map_col:
     if is_data_present:
         # 🌟 LOGIKA PEWARNAAN BERDASARKAN 'PREDIKSI' (CUSTOM COLOR SCHEME)
         CUSTOM_COLOR_MAP = {
-            'KARET': '#FFC300', # Kuning
-            'KOPI': '#8B4513',  # Coklat
-            'PADI': '#3CB371',  # Hijau
-            'LAINNYA': '#808080' # Abu-abu
+            'KARET': "#FFBF00", # Kuning
+            'KOPI': "#492C18",  # Coklat
+            'PADI': "#1A9B23",  # Hijau
+            'LAINNYA': "#D8D8D8" # Abu-abu
         }
         
         prediksi_categories = filtered_gdf['Prediksi'].unique().tolist()
-        color_map = {category: CUSTOM_COLOR_MAP.get(category.upper(), '#808080') for category in prediksi_categories}
+        color_map = {}
+        for category in prediksi_categories:
+            color_map[category] = CUSTOM_COLOR_MAP.get(category.upper(), '#808080') 
 
         def style_function(feature):
             prediksi_value = feature['properties']['Prediksi'].upper()
@@ -139,10 +153,11 @@ with map_col:
                 'fillOpacity': 0.7
             }
 
+        # Zoom Otomatis ke Batas Wilayah Terpilih
         bounds = filtered_gdf.total_bounds
         m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]]) 
         
-        # Tambahkan GeoJSON layer
+        # Tambahkan GeoJSON layer ke Folium
         geojson_layer = folium.GeoJson(
             filtered_gdf,
             style_function=style_function,
@@ -161,9 +176,10 @@ with map_col:
             highlight_function=lambda x: {'weight': 3, 'color': 'white'},
         ).add_to(m)
 
-        # 🌟 PENAMBAHAN: Marker POI (Merah Solid, Ringan)
+        # Marker POI (Merah)
+        MARKER_COLOR_POI = "#FF0000" # Merah
+        
         poi_group = folium.FeatureGroup(name=f"Point of Interest ({len(poi_df)} Titik)").add_to(m)
-        POI_COLOR = '#FF0000' # Merah Solid Sesuai Permintaan
         
         if not poi_df.empty:
             for idx, row in poi_df.iterrows():
@@ -175,44 +191,47 @@ with map_col:
 
                 poi_name = row.get('name', f"POI-{idx+1}") 
                 poi_category = row.get('Kategori_POI', 'Umum')
+                marker_color = MARKER_COLOR_POI 
 
-                # Menggunakan folium.CircleMarker untuk performa ringan
                 folium.CircleMarker(
                     [lat, lon],
-                    radius=4,  
-                    color=POI_COLOR, 
-                    weight=1.5, # Garis tepi lebih tebal
+                    radius=4,  
+                    color=marker_color, 
+                    weight=1,
                     fill=True,
-                    fill_color=POI_COLOR, 
-                    fill_opacity=0.8,
-                    tooltip=f"POI: {poi_name}",
-                    popup=folium.Popup(f"<b>{poi_name}</b><br>Kategori: {poi_category}"),
+                    fill_color=marker_color, 
+                    fill_opacity=0.7,
+                    tooltip=f"{poi_name} ({poi_category})",
+                    popup=folium.Popup(f"<b>{poi_name}</b><br>Kategori: {poi_category}<br>Kabupaten: {row.get('Kabupaten', 'N/A')}"),
                 ).add_to(poi_group)
 
         # Legenda Dinamis Komoditas
         legend_entries = ""
         for category, color in color_map.items():
-            # TIDAK MENGGUNAKAN EMOTICON/ICON
             legend_entries += f'&nbsp; <i style="background:{color}; color:{color}; padding-left: 10px; border-radius: 2px;"></i> {category} <br>'
             
         legend_html = f"""
-             <div style="position: fixed; 
-                         bottom: 50px; left: 50px; width: 200px; max-height: 250px; 
-                         border:2px solid #5a5a5a; z-index:9999; font-size:14px;
-                         background-color:white; opacity:0.9; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.2); overflow-y: auto;">
-               &nbsp; <b>Komoditas Unggulan</b> <br>
-               {legend_entries}
-             </div>
-             """
+              <div style="position: fixed; 
+                          bottom: 50px; left: 50px; width: 200px; max-height: 250px; 
+                          border:2px solid grey; z-index:9999; font-size:14px;
+                          background-color:white; opacity:0.9; padding: 5px; overflow-y: auto;">
+                &nbsp; <b>Komoditas Unggulan</b> <br>
+                {legend_entries}
+                <hr style="margin: 5px 0;">
+                &nbsp; <b>Point of Interest</b> <br>
+                &nbsp; <i style="background:{MARKER_COLOR_POI}; color:{MARKER_COLOR_POI}; padding-left: 10px; border-radius: 2px;"></i> POI Terpilih <br>
+              </div>
+              """
         m.get_root().html.add_child(folium.Element(legend_html))
         
         # Tambahkan kontrol layer
         folium.LayerControl(position='topright').add_to(m)
 
-        # Hapus parameter width untuk responsivitas
+        # Tampilkan peta dan dapatkan hasil klik
         st_map = st_folium(
             m, 
-            height=600, # Menjaga ketinggian tetap, tapi lebar akan dinamis
+            width=700, 
+            height=500, 
             feature_group_to_add=[geojson_layer],
             key="folium_map_final",
         )
@@ -227,7 +246,8 @@ with map_col:
             if current_wadmkd != new_wadmkd:
                 st.session_state['clicked_data'] = new_data
                 st.rerun()
-                 
+                                 
+        
     else:
         m_base = folium.Map(
             location=[default_lat, default_lon], 
@@ -241,7 +261,7 @@ with map_col:
 
 # --- 5. Grafik Bar Chart (Komoditas Unggulan) ---
 with col1:
-    st.subheader("Distribusi Desa per Komoditas Unggulan")
+    st.subheader("Distribusi Desa per Komoditas")
     if is_data_present: 
         komoditas_count = filtered_gdf['Prediksi'].value_counts().reset_index()
         komoditas_count.columns = ['Komoditas_Unggulan', 'Jumlah_Desa']
@@ -249,7 +269,6 @@ with col1:
         komoditas_top = komoditas_count.iloc[0]['Komoditas_Unggulan'] if not komoditas_count.empty else 'Tidak Ada'
         st.caption(f"Komoditas dominan di wilayah terpilih: **{komoditas_top}**.")
         
-        # Menggunakan skema warna Plotly yang netral
         fig_komoditas = px.bar(
             komoditas_count, 
             x='Jumlah_Desa', 
@@ -257,57 +276,53 @@ with col1:
             orientation='h',
             title='Jumlah Desa berdasarkan Komoditas',
             color='Jumlah_Desa',
-            color_continuous_scale=px.colors.sequential.Plotly
+            color_continuous_scale=px.colors.sequential.Viridis 
         )
         fig_komoditas.update_layout(
             yaxis={'categoryorder':'total ascending'},
-            margin=dict(t=30, l=10, r=10, b=10),
-            plot_bgcolor='white',
-            paper_bgcolor='white'
+            margin=dict(t=30, l=10, r=10, b=10)
         )
         st.plotly_chart(fig_komoditas, use_container_width=True)
     else:
-        st.info("Tidak ada data yang tersedia untuk visualisasi Komoditas.")
+        st.info("Tidak ada data yang tersedia.")
 
 
 # --- 6. Grafik Bar Chart (Jumlah POI per Kabupaten) ---
 with col2:
     st.subheader("Total POI per Kabupaten/Kota")
     if is_data_present: 
-        poi_sum = filtered_gdf.groupby('Kabupaten')['jumlah_poi'].sum().reset_index()
+        # Menggunakan poi_df yang sudah difilter untuk summary POI
+        poi_sum = poi_df.groupby('Kabupaten').size().reset_index(name='jumlah_poi_terfilter')
         
-        poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi'].idxmax()]['Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
+        poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi_terfilter'].idxmax()]['Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
         st.caption(f"Kabupaten dengan POI terbanyak: **{poi_max_kab}**.")
         
-        # Menggunakan skema warna Plotly yang netral
         fig_poi = px.bar(
             poi_sum, 
             x='Kabupaten', 
-            y='jumlah_poi',
+            y='jumlah_poi_terfilter',
             title='Total POI berdasarkan Kabupaten/Kota',
-            color='jumlah_poi',
-            color_continuous_scale=px.colors.sequential.Plotly
+            color='jumlah_poi_terfilter',
+            color_continuous_scale=px.colors.sequential.Viridis
         )
         fig_poi.update_xaxes(tickangle=45)
         fig_poi.update_layout(
-            margin=dict(t=30, l=10, r=10, b=10),
-            plot_bgcolor='white',
-            paper_bgcolor='white'
+            margin=dict(t=30, l=10, r=10, b=10)
         )
         st.plotly_chart(fig_poi, use_container_width=True)
     else:
-        st.info("Tidak ada data yang tersedia untuk visualisasi POI.")
+        st.info("Tidak ada data yang tersedia.")
 
 
 # --- 7. Tabel Detail (Implementasi Fungsionalitas Klik) ---
 with detail_col:
-    st.header("Detail Desa yang Dipilih")
+    st.header("Keterangan Desa Terpilih")
     
-    # Mapping Singkatan ke Kepanjangan yang Jelas
-    COLUMN_MAPPING = {
+    # 🌟 PENYESUAIAN: Mapping kolom asli ke nama panjang yang baru
+    COLUMN_MAP = {
         'WADMKD': 'Nama Desa/Kelurahan',
         'WADMKK': 'Nama Kabupaten/Kota',
-        'LUAS': 'Luas Wilayah (km²)', # Ditambahkan satuan
+        'LUAS': 'Luas Wilayah',
         'EVI': 'Enhanced Vegetation Index (EVI)',
         'MNDWI': 'Modified Normalized Difference Water Index (MNDWI)',
         'NBR': 'Normalized Burn Ratio (NBR)',
@@ -316,47 +331,48 @@ with detail_col:
         'NDWI': 'Normalized Difference Water Index (NDWI)',
         'RVI': 'Ratio Vegetation Index (RVI)',
         'SAVI': 'Soil Adjusted Vegetation Index (SAVI)',
-        'Elevation': 'Elevasi (meter)',
+        'Elevation': 'Ketinggian (mdpl)',
         'Slope': 'Kemiringan Lahan (Derajat)',
-        'Rainfall': 'Curah Hujan (mm/tahun)',
-        'TCI': 'Thermal Condition Index (TCI)',
-        'Prediksi': 'Komoditas Unggulan (Prediksi)',
+        'Rainfall': 'Curah Hujan',
+        'TCI': 'Thermal Condition Index (TCI)', 
+        'Prediksi': 'Komoditas Unggulan', 
         'jumlah_poi': 'Jumlah POI Lokal'
     }
+    DISPLAY_COLUMNS = list(COLUMN_MAP.keys())
     
-    DISPLAY_COLUMNS = list(COLUMN_MAPPING.keys())
-    
+    # Periksa apakah ada data yang diklik dari Session State
     if st.session_state.get('clicked_data'):
         data = st.session_state['clicked_data']
         
-        selected_data = {col: data.get(col) for col in DISPLAY_COLUMNS if col in data and data.get(col) is not None}
+        selected_data = {}
+        for col_short in DISPLAY_COLUMNS:
+            if col_short in data and data.get(col_short) is not None:
+                selected_data[col_short] = data.get(col_short)
         
+        # Susun ulang untuk tampilan vertikal (Transpose)
         df_selected = pd.DataFrame.from_dict(selected_data, orient='index', columns=['Nilai']).reset_index()
-        df_selected.columns = ['Atribut', 'Nilai']
+        df_selected.columns = ['Atribut_Singkat', 'Nilai']
         
-        df_selected['Atribut'] = df_selected['Atribut'].map(COLUMN_MAPPING)
-
-        def format_nilai(row):
-            if isinstance(row['Nilai'], (int, float)):
-                formatted_value = f"{row['Nilai']:.2f}"
-            else:
-                formatted_value = row['Nilai']
-            
-            if 'Luas Wilayah' in row['Atribut']:
-                return f"{formatted_value} km²"
-            if 'Elevasi' in row['Atribut']:
-                return f"{formatted_value} meter"
-            if 'Curah Hujan' in row['Atribut']:
-                return f"{formatted_value} mm/tahun"
-            if 'Kemiringan Lahan' in row['Atribut']:
-                return f"{formatted_value} Derajat"
-
-            return formatted_value
-
-        df_selected['Nilai'] = df_selected.apply(format_nilai, axis=1)
-
+        # 🌟 PENYESUAIAN 1: Ganti nama singkatan dengan nama panjang
+        df_selected['Atribut'] = df_selected['Atribut_Singkat'].map(COLUMN_MAP)
+        
+        # 🌟 PENYESUAIAN 2: Format nilai dan tambahkan satuan Luas Wilayah
+        df_selected['Nilai'] = df_selected.apply(
+            lambda row: 
+                # Format Luas Wilayah dengan satuan km^2
+                f"{row['Nilai']:.2f} km\u00b2" if row['Atribut_Singkat'] == 'LUAS' and isinstance(row['Nilai'], (int, float)) else
+                # Format angka selain Luas Wilayah ke 2 desimal
+                f"{row['Nilai']:.2f}" if isinstance(row['Nilai'], (int, float)) else 
+                # Biarkan string tetap
+                row['Nilai'], 
+            axis=1
+        )
+        
+        # Hapus kolom singkatan dan tampilkan kolom panjang
+        df_selected = df_selected[['Atribut', 'Nilai']]
+        
         st.markdown(f"**Detail untuk Desa/Kelurahan: {data.get('WADMKD', '-')}**")
-        st.dataframe(df_selected, use_container_width=True)
+        st.dataframe(df_selected, use_container_width=True, hide_index=True)
         
     else:
         st.info("Silakan **klik** pada salah satu desa di peta untuk menampilkan detail atribut.")
