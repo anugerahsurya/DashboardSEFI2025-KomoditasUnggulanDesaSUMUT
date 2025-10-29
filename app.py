@@ -286,24 +286,32 @@ with col1:
 
 
 # --- 6. Grafik Bar Chart (Jumlah POI per Kabupaten) ---
+# --- 6. Grafik Bar Chart (Jumlah POI per Kabupaten) ---
 with col2:
     st.subheader("Total POI per Kabupaten/Kota")
     if is_data_present: 
-        # 🌟 PENYESUAIAN: Gunakan semua POI (poi_df_full) untuk grafik ini
-        poi_sum = poi_df_full.groupby('Kabupaten').size().reset_index(name='jumlah_poi_total')
+        # 🌟 Ganti: ambil data dari gdf, bukan poi_df_full
+        # Kelompokkan berdasarkan kolom WADMKK dan jumlahkan nilai 'jumlah_poi'
+        poi_sum = (
+            data_gdf.groupby('WADMKK')['jumlah_poi']
+            .sum()
+            .reset_index(name='jumlah_poi_total')
+            .sort_values(by='jumlah_poi_total', ascending=False)
+        )
         
-        poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi_total'].idxmax()]['Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
+        poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi_total'].idxmax(), 'WADMKK'] if not poi_sum.empty else 'Tidak Ada'
         st.caption(f"Kabupaten dengan POI terbanyak: **{poi_max_kab}**.")
         
         fig_poi = px.bar(
             poi_sum, 
-            x='Kabupaten', 
+            x='WADMKK', 
             y='jumlah_poi_total',
-            title='Total POI berdasarkan Kabupaten/Kota (Semua Data)',
+            title='Total POI berdasarkan Kabupaten/Kota (dari jumlah_poi tiap desa)',
             color='jumlah_poi_total',
             color_continuous_scale=px.colors.sequential.Viridis
         )
-        fig_poi.update_xaxes(tickangle=45)
+        fig_poi.update_xaxes(title='Kabupaten/Kota', tickangle=45)
+        fig_poi.update_yaxes(title='Total POI')
         fig_poi.update_layout(
             margin=dict(t=30, l=10, r=10, b=10)
         )
