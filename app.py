@@ -25,6 +25,8 @@ def load_data(shp_file_path, poi_excel_path):
     gdf = gpd.read_file(shp_file_path)
     gdf['geometry'] = gdf.geometry.simplify(0.001, preserve_topology=True)
     gdf = gdf.rename(columns={'WADMKK': 'Kabupaten'}) 
+    # Tambahkan pengamanan untuk kolom WADMKK
+    gdf['Kabupaten'] = gdf['Kabupaten'].fillna('N/A') 
     gdf = gdf.dropna(subset=['Kabupaten', 'Prediksi', 'jumlah_poi']) 
     gdf['TIPADM'] = gdf['TIPADM'].astype(str) 
 
@@ -37,7 +39,6 @@ def load_data(shp_file_path, poi_excel_path):
              poi_df['Kategori_POI'] = 'Umum' 
         if 'Kabupaten' not in poi_df.columns:
             st.warning("Kolom 'Kabupaten' tidak ditemukan di DataPOI.xlsx. Filter POI mungkin tidak berfungsi.")
-            # Buat kolom dummy agar kode tidak error jika kolom 'Kabupaten' di poi_df tidak ada
             poi_df['Kabupaten'] = 'Unknown' 
     except FileNotFoundError:
         st.error(f"File POI tidak ditemukan di path: {poi_excel_path}. Menggunakan DataFrame POI kosong.")
@@ -134,8 +135,8 @@ with map_col:
         # 🌟 LOGIKA PEWARNAAN BERDASARKAN 'PREDIKSI' (CUSTOM COLOR SCHEME)
         CUSTOM_COLOR_MAP = {
             'KARET': "#FFBF00", # Kuning
-            'KOPI': "#492C18",  # Coklat
-            'PADI': "#1A9B23",  # Hijau
+            'KOPI': "#492C18", 
+            'PADI': "#1A9B23",
             'LAINNYA': "#D8D8D8" # Abu-abu
         }
         
@@ -195,7 +196,7 @@ with map_col:
 
                 folium.CircleMarker(
                     [lat, lon],
-                    radius=4,  
+                    radius=4,
                     color=marker_color, 
                     weight=1,
                     fill=True,
@@ -246,7 +247,6 @@ with map_col:
             if current_wadmkd != new_wadmkd:
                 st.session_state['clicked_data'] = new_data
                 st.rerun()
-                                 
         
     else:
         m_base = folium.Map(
@@ -356,23 +356,35 @@ with detail_col:
         # 🌟 PENYESUAIAN 1: Ganti nama singkatan dengan nama panjang
         df_selected['Atribut'] = df_selected['Atribut_Singkat'].map(COLUMN_MAP)
         
-        # 🌟 PENYESUAIAN 2: Format nilai dan tambahkan satuan Luas Wilayah
-        df_selected['Nilai'] = df_selected.apply(
-            lambda row: 
-                # Format Luas Wilayah dengan satuan km^2
-                f"{row['Nilai']:.2f} km\u00b2" if row['Atribut_Singkat'] == 'LUAS' and isinstance(row['Nilai'], (int, float)) else
-                # Format angka selain Luas Wilayah ke 2 desimal
-                f"{row['Nilai']:.2f}" if isinstance(row['Nilai'], (int, float)) else 
-                # Biarkan string tetap
-                row['Nilai'], 
-            axis=1
-        )
+        # 🌟 PENANGANAN ERROR DAN FORMATTING NILAI
+        def format_nilai(row):
+            nilai = row['Nilai']
+            atribut = row['Atribut_Singkat']
+            
+            # Coba konversi nilai ke float jika bukan string
+            numeric_value = None
+            if not isinstance(nilai, str) and nilai is not None:
+                try:
+                    numeric_value = float(nilai)
+                except (ValueError, TypeError):
+                    pass # Biarkan numeric_value tetap None
+            
+            # Logika Pemformatan
+            if atribut == 'LUAS' and numeric_value is not None:
+                return f"{numeric_value:.2f} km\u00b2"
+            elif numeric_value is not None:
+                return f"{numeric_value:.2f}"
+            else:
+                # Jika tidak numerik (seperti nama atau string prediksi)
+                return str(nilai) if nilai is not None else 'N/A'
+        
+        df_selected['Nilai'] = df_selected.apply(format_nilai, axis=1)
         
         # Hapus kolom singkatan dan tampilkan kolom panjang
         df_selected = df_selected[['Atribut', 'Nilai']]
         
         st.markdown(f"**Detail untuk Desa/Kelurahan: {data.get('WADMKD', '-')}**")
-        st.dataframe(df_selected, use_container_width=True, hide_index=True)
+        st.dataframe(df_selected, use_container_width=True, hide_index=True) # Tambahkan hide_index=True
         
     else:
         st.info("Silakan **klik** pada salah satu desa di peta untuk menampilkan detail atribut.")
