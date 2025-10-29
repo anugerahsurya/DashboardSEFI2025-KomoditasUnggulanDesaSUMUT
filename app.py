@@ -34,11 +34,13 @@ def load_data(shp_file_path, poi_excel_path):
     # 1. Muat GeoDataFrame (Data Wilayah)
     gdf = gpd.read_file(shp_file_path)
     # Mempercepat render map dengan simplifikasi geometry
-    gdf['geometry'] = gdf.geometry.simplify(0.005, preserve_topology=True) 
+    gdf['geometry'] = gdf.geometry.simplify(0.0005, preserve_topology=True) 
     gdf = gdf.rename(columns={'WADMKK': 'Kabupaten'}) 
     # Pastikan kolom kunci tidak null
     gdf['Kabupaten'] = gdf['Kabupaten'].fillna('N/A') 
     gdf['Prediksi'] = gdf['Prediksi'].fillna('LAINNYA') 
+    # Tambahkan pengamanan untuk jumlah_poi
+    gdf['jumlah_poi'] = gdf['jumlah_poi'].fillna(0).astype(int) 
     gdf = gdf.dropna(subset=['Kabupaten', 'Prediksi']) 
     gdf['TIPADM'] = gdf['TIPADM'].astype(str) 
 
@@ -90,7 +92,7 @@ selected_kabupaten = st.sidebar.multiselect(
 if selected_kabupaten:
     filtered_gdf = data_gdf[data_gdf['Kabupaten'].isin(selected_kabupaten)].copy()
     
-    # 🚨 PERBAIKAN: Filter POI untuk Bar Chart dan Map HANYA untuk Kabupaten terpilih
+    # Filter POI untuk Map (digunakan untuk penempatan marker)
     poi_df = poi_df_full[poi_df_full['Kabupaten'].isin(selected_kabupaten)].copy() 
     
     st.sidebar.success(f"✔️ {len(selected_kabupaten)} Kabupaten/Kota terpilih.")
@@ -112,7 +114,7 @@ st.markdown("---")
 # SUMMARY METRICS
 if is_data_present:
     total_desa = filtered_gdf.shape[0]
-    # Total POI di peta sekarang = jumlah POI di kabupaten terpilih
+    # Total POI di peta (berdasarkan POI Excel, yang terfilter)
     total_poi_peta = len(poi_df) 
     total_komoditas_unik = filtered_gdf['Prediksi'].nunique()
     
@@ -274,10 +276,7 @@ with col1:
         komoditas_top = komoditas_count.iloc[0]['Komoditas_Unggulan'] if not komoditas_count.empty else 'Tidak Ada'
         st.caption(f"Komoditas dominan di wilayah terpilih: **{komoditas_top}**.")
         
-        # 🚨 PENYESUAIAN: Menambahkan skema warna kustom agar sesuai map
-        # Buat list warna berdasarkan urutan komoditas di chart
-        chart_colors = [CUSTOM_COLOR_MAP.get(k.upper(), '#808080') for k in komoditas_count['Komoditas_Unggulan']]
-        
+        # PENYESUAIAN: Menambahkan skema warna kustom agar sesuai map
         fig_komoditas = px.bar(
             komoditas_count, 
             x='Jumlah_Desa', 
@@ -285,7 +284,7 @@ with col1:
             orientation='h',
             title='Jumlah Desa berdasarkan Komoditas',
             color='Komoditas_Unggulan', # Color berdasarkan kategori
-            color_discrete_map=CUSTOM_COLOR_MAP, # Skema warna kustom
+            color_discrete_map={k: CUSTOM_COLOR_MAP.get(k.upper(), '#808080') for k in komoditas_count['Komoditas_Unggulan'].unique()}, # Skema warna kustom
         )
         fig_komoditas.update_layout(
             yaxis={'categoryorder':'total ascending'},
@@ -301,8 +300,8 @@ with col1:
 with col2:
     st.subheader("Total POI per Kabupaten/Kota (Terfilter) 📍")
     if is_data_present: 
-        # 🚨 PERBAIKAN: Menggunakan POI yang SUDAH DIFILTER (poi_df)
-        poi_sum = poi_df.groupby('Kabupaten').size().reset_index(name='jumlah_poi_total')
+        # 🚨 PERBAIKAN: Menggunakan filtered_gdf dan menjumlahkan kolom 'jumlah_poi'
+        poi_sum = filtered_gdf.groupby('Kabupaten')['jumlah_poi'].sum().reset_index(name='jumlah_poi_total')
         
         if poi_sum.empty:
             st.info("Tidak ada data POI di Kabupaten/Kota yang terpilih.")
@@ -314,7 +313,7 @@ with col2:
                 poi_sum, 
                 x='Kabupaten', 
                 y='jumlah_poi_total',
-                title='Total POI berdasarkan Kabupaten/Kota (Terfilter)',
+                title='Total POI berdasarkan Kabupaten/Kota (Dari Data SHP)',
                 color='jumlah_poi_total',
                 color_continuous_scale=px.colors.sequential.Plotly3 # Ganti dengan skema lain
             )
