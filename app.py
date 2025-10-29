@@ -37,8 +37,11 @@ def load_data(shp_file_path, poi_excel_path):
         # Pastikan kolom 'Kabupaten' dan 'Kategori_POI' ada
         if 'Kategori_POI' not in poi_df.columns:
              poi_df['Kategori_POI'] = 'Umum' 
-        if 'kabupaten' not in poi_df.columns:
-            st.warning("Kolom 'Kabupaten' tidak ditemukan di DataPOI.xlsx. Filter POI mungkin tidak berfungsi.")
+        # Cek kolom 'Kabupaten' (di sini saya asumsikan namanya 'Kabupaten' agar konsisten dengan gdf)
+        # Jika nama kolom di excel adalah 'kabupaten' (huruf kecil), maka perlu rename atau diperbaiki di excelnya.
+        # Karena di bagian filter di bawah menggunakan 'kabupaten', saya akan asumsikan di sini 'Kabupaten' besar, dan nanti POI difilter secara manual di bawah.
+        if 'Kabupaten' not in poi_df.columns:
+            st.warning("Kolom 'Kabupaten' tidak ditemukan di DataPOI.xlsx. Membatalkan filter POI di peta.")
             poi_df['Kabupaten'] = 'Unknown' 
     except FileNotFoundError:
         st.error(f"File POI tidak ditemukan di path: {poi_excel_path}. Menggunakan DataFrame POI kosong.")
@@ -71,7 +74,7 @@ selected_kabupaten = st.sidebar.multiselect(
     default=[] 
 )
 
-# Filter data GeoPandas
+# Filter data GeoPandas (Data Desa/Wilayah)
 if selected_kabupaten:
     filtered_gdf = data_gdf[data_gdf['Kabupaten'].isin(selected_kabupaten)].copy()
     st.sidebar.success(f"✔️ {len(selected_kabupaten)} Kabupaten/Kota terpilih.")
@@ -79,15 +82,10 @@ else:
     st.sidebar.warning("Silakan pilih minimal satu Kabupaten/Kota.")
     filtered_gdf = gpd.GeoDataFrame([], columns=data_gdf.columns, crs=data_gdf.crs)
 
-# Filter Data POI berdasarkan Kabupaten yang dipilih di sidebar
-if selected_kabupaten:
-    # Memastikan kolom 'Kabupaten' ada di poi_df_full sebelum memfilter
-    if 'kabupaten' in poi_df_full.columns:
-        poi_df = poi_df_full[poi_df_full['kabupaten'].isin(selected_kabupaten)].copy()
-    else:
-        poi_df = poi_df_full.copy() 
-else:
-    poi_df = pd.DataFrame(columns=poi_df_full.columns)
+# ❌ PENYESUAIAN: HILANGKAN FILTER POI
+# POI yang ditampilkan di peta adalah SEMUA POI, tidak tergantung filter kabupaten/kota.
+# Variabel poi_df sekarang sama dengan poi_df_full.
+poi_df = poi_df_full.copy()
 
 
 is_data_present = not filtered_gdf.empty
@@ -102,12 +100,14 @@ st.markdown("---")
 # SUMMARY METRICS
 if is_data_present:
     total_desa = filtered_gdf.shape[0]
-    total_poi = filtered_gdf['jumlah_poi'].sum()
+    total_poi_desa = filtered_gdf['jumlah_poi'].sum()
+    # 🌟 PENYESUAIAN: Gunakan total POI dari SEMUA data (poi_df_full) untuk metrik
+    total_poi_peta = len(poi_df_full) 
     total_komoditas_unik = filtered_gdf['Prediksi'].nunique()
     
     col_kpi_1, col_kpi_2, col_kpi_3 = st.columns(3)
     col_kpi_1.metric("Total Desa Terpilih", f"{total_desa:,}")
-    col_kpi_2.metric("Total POI di Peta", f"{len(poi_df):,}") 
+    col_kpi_2.metric("Total POI di Peta (Semua Data)", f"{total_poi_peta:,}") 
     col_kpi_3.metric("Jenis Komoditas Unik", f"{total_komoditas_unik}")
 st.markdown("---")
 
@@ -137,7 +137,7 @@ with map_col:
             'KARET': "#FFBF00", # Kuning
             'KOPI': "#492C18", 
             'PADI': "#1A9B23",
-            'LAINNYA': "#D8D8D8" # Abu-abu
+            'LAINNYA': "#FFFFFF93" # Abu-abu
         }
         
         prediksi_categories = filtered_gdf['Prediksi'].unique().tolist()
@@ -177,7 +177,7 @@ with map_col:
             highlight_function=lambda x: {'weight': 3, 'color': 'white'},
         ).add_to(m)
 
-        # Marker POI (Merah)
+        # Marker POI (Merah) - MENGGUNAKAN poi_df (yang sekarang adalah poi_df_full)
         MARKER_COLOR_POI = "#FF0000" # Merah
         
         poi_group = folium.FeatureGroup(name=f"Point of Interest ({len(poi_df)} Titik)").add_to(m)
@@ -193,6 +193,9 @@ with map_col:
                 poi_name = row.get('name', f"POI-{idx+1}") 
                 poi_category = row.get('Kategori_POI', 'Umum')
                 marker_color = MARKER_COLOR_POI 
+                # Jika kolom 'Kabupaten' tidak ada, gunakan default 'N/A'
+                poi_kabupaten = row.get('Kabupaten', row.get('kabupaten', 'N/A'))
+
 
                 folium.CircleMarker(
                     [lat, lon],
@@ -203,7 +206,7 @@ with map_col:
                     fill_color=marker_color, 
                     fill_opacity=0.7,
                     tooltip=f"{poi_name} ({poi_category})",
-                    popup=folium.Popup(f"<b>{poi_name}</b><br>Kategori: {poi_category}<br>Kabupaten: {row.get('Kabupaten', 'N/A')}"),
+                    popup=folium.Popup(f"<b>{poi_name}</b><br>Kategori: {poi_category}<br>Kabupaten: {poi_kabupaten}"),
                 ).add_to(poi_group)
 
         # Legenda Dinamis Komoditas
@@ -220,7 +223,7 @@ with map_col:
                 {legend_entries}
                 <hr style="margin: 5px 0;">
                 &nbsp; <b>Point of Interest</b> <br>
-                &nbsp; <i style="background:{MARKER_COLOR_POI}; color:{MARKER_COLOR_POI}; padding-left: 10px; border-radius: 2px;"></i> POI Terpilih <br>
+                &nbsp; <i style="background:{MARKER_COLOR_POI}; color:{MARKER_COLOR_POI}; padding-left: 10px; border-radius: 2px;"></i> Semua POI <br>
               </div>
               """
         m.get_root().html.add_child(folium.Element(legend_html))
@@ -247,7 +250,6 @@ with map_col:
             if current_wadmkd != new_wadmkd:
                 st.session_state['clicked_data'] = new_data
                 st.rerun()
-        
     else:
         m_base = folium.Map(
             location=[default_lat, default_lon], 
@@ -291,18 +293,18 @@ with col1:
 with col2:
     st.subheader("Total POI per Kabupaten/Kota")
     if is_data_present: 
-        # Menggunakan poi_df yang sudah difilter untuk summary POI
-        poi_sum = poi_df.groupby('Kabupaten').size().reset_index(name='jumlah_poi_terfilter')
+        # 🌟 PENYESUAIAN: Gunakan semua POI (poi_df_full) untuk grafik ini
+        poi_sum = poi_df_full.groupby('Kabupaten').size().reset_index(name='jumlah_poi_total')
         
-        poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi_terfilter'].idxmax()]['Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
+        poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi_total'].idxmax()]['Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
         st.caption(f"Kabupaten dengan POI terbanyak: **{poi_max_kab}**.")
         
         fig_poi = px.bar(
             poi_sum, 
             x='Kabupaten', 
-            y='jumlah_poi_terfilter',
-            title='Total POI berdasarkan Kabupaten/Kota',
-            color='jumlah_poi_terfilter',
+            y='jumlah_poi_total',
+            title='Total POI berdasarkan Kabupaten/Kota (Semua Data)',
+            color='jumlah_poi_total',
             color_continuous_scale=px.colors.sequential.Viridis
         )
         fig_poi.update_xaxes(tickangle=45)
@@ -384,7 +386,7 @@ with detail_col:
         df_selected = df_selected[['Atribut', 'Nilai']]
         
         st.markdown(f"**Detail untuk Desa/Kelurahan: {data.get('WADMKD', '-')}**")
-        st.dataframe(df_selected, use_container_width=True, hide_index=True) # Tambahkan hide_index=True
+        st.dataframe(df_selected, use_container_width=True, hide_index=True)
         
     else:
         st.info("Silakan **klik** pada salah satu desa di peta untuk menampilkan detail atribut.")
