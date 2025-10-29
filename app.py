@@ -293,11 +293,12 @@ with col2:
         # 🌟 Ganti: ambil data dari gdf, bukan poi_df_full
         # Kelompokkan berdasarkan kolom WADMKK dan jumlahkan nilai 'jumlah_poi'
         poi_sum = (
-            data_gdf.groupby('Kabupaten')['jumlah_poi']
+            filtered_gdf.groupby('Kabupaten')['jumlah_poi']
             .sum()
             .reset_index(name='jumlah_poi_total')
             .sort_values(by='jumlah_poi_total', ascending=False)
         )
+
         
         poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi_total'].idxmax(), 'Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
         st.caption(f"Kabupaten dengan POI terbanyak: **{poi_max_kab}**.")
