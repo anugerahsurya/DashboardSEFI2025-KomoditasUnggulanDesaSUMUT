@@ -7,47 +7,6 @@ import folium
 from streamlit_folium import st_folium 
 import matplotlib.colors as mcolors 
 
-# --- Kustomisasi CSS untuk Font Poppins & Style ---
-def apply_custom_styles():
-    st.markdown("""
-        <style>
-        /* Impor Font Poppins dari Google Fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-
-        /* Terapkan Poppins ke seluruh aplikasi Streamlit */
-        html, body, [class*="st-"] {
-            font-family: 'Poppins', sans-serif;
-        }
-
-        /* Styling Judul dan Header */
-        h1, h2, h3, h4 {
-            color: #1E4158; /* Warna Biru Tua */
-            font-weight: 600;
-        }
-
-        /* Styling Sidebar */
-        .sidebar .sidebar-content {
-            background-color: #f0f2f6; /* Latar abu-abu terang */
-        }
-        
-        /* Mengganti warna background metrik agar lebih elegan */
-        [data-testid="stMetric"] {
-            background-color: #f7f9fb; 
-            border: 1px solid #e6e8eb;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        
-        /* Tombol Multiselect di sidebar */
-        .stMultiSelect > div:first-child {
-            border-color: #ced4da;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
-apply_custom_styles()
-
 # 🌟 INISIALISASI SESSION STATE UNTUK STABILITAS
 if 'clicked_data' not in st.session_state:
     st.session_state['clicked_data'] = None
@@ -204,7 +163,7 @@ with map_col:
 
         # 🌟 PENAMBAHAN: Marker POI (Merah Solid, Ringan)
         poi_group = folium.FeatureGroup(name=f"Point of Interest ({len(poi_df)} Titik)").add_to(m)
-        POI_COLOR = '#FF0000' # Merah Solid untuk semua POI
+        POI_COLOR = '#FF0000' # Merah Solid Sesuai Permintaan
         
         if not poi_df.empty:
             for idx, row in poi_df.iterrows():
@@ -233,12 +192,13 @@ with map_col:
         # Legenda Dinamis Komoditas
         legend_entries = ""
         for category, color in color_map.items():
+            # TIDAK MENGGUNAKAN EMOTICON/ICON
             legend_entries += f'&nbsp; <i style="background:{color}; color:{color}; padding-left: 10px; border-radius: 2px;"></i> {category} <br>'
             
         legend_html = f"""
              <div style="position: fixed; 
                          bottom: 50px; left: 50px; width: 200px; max-height: 250px; 
-                         border:2px solid #5a5a5a; z-index:9999; font-size:14px; font-family: 'Poppins', sans-serif;
+                         border:2px solid #5a5a5a; z-index:9999; font-size:14px;
                          background-color:white; opacity:0.9; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.2); overflow-y: auto;">
                &nbsp; <b>Komoditas Unggulan</b> <br>
                {legend_entries}
@@ -249,11 +209,10 @@ with map_col:
         # Tambahkan kontrol layer
         folium.LayerControl(position='topright').add_to(m)
 
-        # Tampilkan peta dan dapatkan hasil klik
+        # Hapus parameter width untuk responsivitas
         st_map = st_folium(
             m, 
-            width=700, 
-            height=500, 
+            height=600, # Menjaga ketinggian tetap, tapi lebar akan dinamis
             feature_group_to_add=[geojson_layer],
             key="folium_map_final",
         )
@@ -290,7 +249,7 @@ with col1:
         komoditas_top = komoditas_count.iloc[0]['Komoditas_Unggulan'] if not komoditas_count.empty else 'Tidak Ada'
         st.caption(f"Komoditas dominan di wilayah terpilih: **{komoditas_top}**.")
         
-        # Menggunakan skema warna Plotly yang lebih netral dan bersih
+        # Menggunakan skema warna Plotly yang netral
         fig_komoditas = px.bar(
             komoditas_count, 
             x='Jumlah_Desa', 
@@ -320,7 +279,7 @@ with col2:
         poi_max_kab = poi_sum.loc[poi_sum['jumlah_poi'].idxmax()]['Kabupaten'] if not poi_sum.empty else 'Tidak Ada'
         st.caption(f"Kabupaten dengan POI terbanyak: **{poi_max_kab}**.")
         
-        # Menggunakan skema warna Plotly yang lebih netral dan bersih
+        # Menggunakan skema warna Plotly yang netral
         fig_poi = px.bar(
             poi_sum, 
             x='Kabupaten', 
@@ -365,30 +324,24 @@ with detail_col:
         'jumlah_poi': 'Jumlah POI Lokal'
     }
     
-    # Ambil kolom yang dibutuhkan dari mapping
     DISPLAY_COLUMNS = list(COLUMN_MAPPING.keys())
     
     if st.session_state.get('clicked_data'):
         data = st.session_state['clicked_data']
         
-        # Saring data yang relevan
         selected_data = {col: data.get(col) for col in DISPLAY_COLUMNS if col in data and data.get(col) is not None}
         
-        # Susun ulang untuk tampilan vertikal (Transpose)
         df_selected = pd.DataFrame.from_dict(selected_data, orient='index', columns=['Nilai']).reset_index()
         df_selected.columns = ['Atribut', 'Nilai']
         
-        # Ganti nama atribut menggunakan mapping
         df_selected['Atribut'] = df_selected['Atribut'].map(COLUMN_MAPPING)
 
-        # Konversi float ke 2 desimal, tambahkan satuan untuk Luas dan Elevasi
         def format_nilai(row):
             if isinstance(row['Nilai'], (int, float)):
                 formatted_value = f"{row['Nilai']:.2f}"
             else:
                 formatted_value = row['Nilai']
             
-            # Tambahkan satuan untuk kolom spesifik
             if 'Luas Wilayah' in row['Atribut']:
                 return f"{formatted_value} km²"
             if 'Elevasi' in row['Atribut']:
