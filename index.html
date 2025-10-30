@@ -116,6 +116,18 @@
               multiple
               size="10"
             ></select>
+
+            <label
+              for="komoditas-select"
+              class="form-label fw-bold mb-2 text-dark"
+              >Pilih Komoditas Unggulan</label
+            >
+            <select
+              id="komoditas-select"
+              class="form-select mb-3"
+              multiple
+              size="5"
+            ></select>
             <button
               id="apply-filter-btn"
               class="btn w-100 fw-bold"
@@ -153,7 +165,7 @@
               <div class="card shadow-sm h-100 border-danger">
                 <div class="card-body">
                   <h6 class="card-subtitle mb-2 text-muted">
-                    Total POI di Peta (Semua Data)
+                    Total Desa dengan POI > 0
                   </h6>
                   <p class="card-text fs-3 fw-bold text-danger" id="kpi-poi">
                     0
@@ -165,7 +177,7 @@
               <div class="card shadow-sm h-100 border-primary">
                 <div class="card-body">
                   <h6 class="card-subtitle mb-2 text-muted">
-                    Jenis Komoditas Unik
+                    Total Desa dengan POI = 0
                   </h6>
                   <p
                     class="card-text fs-3 fw-bold text-primary"

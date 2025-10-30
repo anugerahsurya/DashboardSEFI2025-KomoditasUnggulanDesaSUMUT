@@ -15,6 +15,28 @@ const CUSTOM_COLOR_MAP = {
 };
 const MARKER_COLOR_POI = "#DC3545"; // Merah Bootstrap
 
+// --- MAPPING LULC SESUAI URUTAN LEGENDA (KODE 1 SAMPAI 8) ---
+// Asumsi:
+// 1 = Water
+// 2 = Trees
+// 3 = Grass
+// 4 = Flooded Vegetation
+// 5 = Crops
+// 6 = Shrub and Scrub
+// 7 = Built
+// 8 = Bare
+const LULC_ESRI_MAP = {
+  1: "Air", // Water
+  2: "Pohon / Hutan", // Trees
+  3: "Rumput/Padang Rumput", // Grass
+  4: "Vegetasi Tergenang/Lahan Basah", // Flooded Vegetation
+  5: "Tanaman Pertanian", // Crops
+  6: "Semak dan Belukar", // Shrub and Scrub
+  7: "Area Terbangun", // Built
+  8: "Lahan Terbuka/Tidak Bervegetasi", // Bare
+  99: "Lainnya/Tidak Didefinisikan", // Fallback untuk kode di luar 1-8
+};
+
 // Mapping Kolom
 const COLUMN_MAP = {
   WADMKD: "Nama Desa/Kelurahan",
@@ -70,7 +92,8 @@ async function loadData() {
     geojsonData = await geoJsonRes.json();
     poiData = await poiJsonRes.json();
 
-    populateKabupatenFilter();
+    // Memuat filter Kabupaten dan Komoditas
+    populateFilters();
     applyFilter();
   } catch (error) {
     console.error("Gagal memuat data GeoJSON atau POI:", error);
@@ -80,42 +103,82 @@ async function loadData() {
 }
 
 // --- 2. LOGIKA FILTER (Pengganti Pandas/GeoPandas Filter) ---
-function populateKabupatenFilter() {
-  const select = document.getElementById("kabupaten-select");
-  const kabList = new Set(
-    geojsonData.features.map((f) => f.properties.Kabupaten)
-  );
 
-  select.innerHTML = "";
+// Fungsi baru untuk mengisi kedua filter
+function populateFilters() {
+  const selectKab = document.getElementById("kabupaten-select");
+  const selectKomoditas = document.getElementById("komoditas-select");
 
+  const kabList = new Set();
+  const komoditasList = new Set();
+
+  geojsonData.features.forEach((f) => {
+    kabList.add(f.properties.Kabupaten);
+    if (f.properties.Prediksi) {
+      komoditasList.add(f.properties.Prediksi);
+    }
+  });
+
+  // Populate Kabupaten
+  selectKab.innerHTML = "";
   [...kabList].sort().forEach((kab) => {
     const option = document.createElement("option");
     option.value = kab;
     option.textContent = kab;
-    select.appendChild(option);
+    selectKab.appendChild(option);
+  });
+
+  // Populate Komoditas
+  selectKomoditas.innerHTML = "";
+  [...komoditasList].sort().forEach((komoditas) => {
+    const option = document.createElement("option");
+    option.value = komoditas;
+    option.textContent = komoditas;
+    selectKomoditas.appendChild(option);
   });
 }
 
+// Fungsi applyFilter yang diperbarui
 function applyFilter() {
-  const select = document.getElementById("kabupaten-select");
-  const selectedKabupaten = Array.from(select.selectedOptions).map(
+  const selectKabupaten = document.getElementById("kabupaten-select");
+  const selectedKabupaten = Array.from(selectKabupaten.selectedOptions).map(
+    (option) => option.value
+  );
+
+  const selectKomoditas = document.getElementById("komoditas-select");
+  const selectedKomoditas = Array.from(selectKomoditas.selectedOptions).map(
     (option) => option.value
   );
 
   let filteredFeatures = geojsonData.features;
 
+  // Filter Kabupaten
   if (selectedKabupaten.length > 0) {
-    filteredFeatures = geojsonData.features.filter((f) =>
+    filteredFeatures = filteredFeatures.filter((f) =>
       selectedKabupaten.includes(f.properties.Kabupaten)
     );
+  }
+
+  // Filter Komoditas
+  if (selectedKomoditas.length > 0) {
+    filteredFeatures = filteredFeatures.filter((f) =>
+      selectedKomoditas.includes(f.properties.Prediksi)
+    );
+  }
+
+  // Teks status
+  const totalGeoData = geojsonData.features.length;
+  const filterCount = selectedKabupaten.length + selectedKomoditas.length;
+
+  if (filterCount > 0) {
     document.getElementById(
       "filter-status"
-    ).innerHTML = `<span class="text-success">✔️ ${selectedKabupaten.length} Kabupaten/Kota terpilih.</span>`;
+    ).innerHTML = `<span class="text-success">✔️ ${filteredFeatures.length} desa terpilih.</span>`;
   } else {
     // Jika tidak ada yang dipilih, tampilkan semua (mode default)
     document.getElementById(
       "filter-status"
-    ).innerHTML = `<span class="text-warning">⚠️ Menampilkan semua ${geojsonData.features.length} desa.</span>`;
+    ).innerHTML = `<span class="text-warning">⚠️ Menampilkan semua ${totalGeoData} desa.</span>`;
   }
 
   const filteredGeoJson = {
@@ -156,11 +219,11 @@ function getStyle(feature) {
 function onEachFeature(feature, layer) {
   const props = feature.properties;
   const popupContent = `
-        <b>Desa:</b> ${props.WADMKD}<br>
-        <b>Kabupaten:</b> ${props.Kabupaten}<br>
-        <b>Komoditas:</b> ${props.Prediksi}<br>
-        <b>Jumlah POI:</b> ${props.jumlah_poi}
-    `;
+        <b>Desa:</b> ${props.WADMKD}<br>
+        <b>Kabupaten:</b> ${props.Kabupaten}<br>
+        <b>Komoditas:</b> ${props.Prediksi}<br>
+        <b>Jumlah POI:</b> ${props.jumlah_poi}
+    `;
   layer.bindPopup(popupContent);
 
   layer.on("click", function (e) {
@@ -236,31 +299,37 @@ function updateMap(filteredGeoJson) {
   });
 
   // Layer Control (optional)
-  L.control
-    .layers(null, {
-      "Desa Terpilih": filteredGeojsonLayer,
-      "Point of Interest": poiLayer,
-    })
-    .addTo(map);
+  if (filteredGeojsonLayer) {
+    L.control
+      .layers(null, {
+        "Desa Terpilih": filteredGeojsonLayer,
+        "Point of Interest": poiLayer,
+      })
+      .addTo(map);
+  }
 }
 
-// --- 4. LOGIKA UPDATE KPI ---
+// --- 4. LOGIKA UPDATE KPI (DIPERBARUI) ---
 function updateKPI(filteredGeoJson) {
   const totalDesa = filteredGeoJson.features.length;
-  const komoditasSet = new Set();
+  let desaPoiPositive = 0;
+  let desaPoiZero = 0;
 
   filteredGeoJson.features.forEach((f) => {
-    if (f.properties.Prediksi) {
-      komoditasSet.add(f.properties.Prediksi);
+    const jumlahPoi = f.properties.jumlah_poi || 0;
+    if (jumlahPoi > 0) {
+      desaPoiPositive += 1;
+    } else {
+      desaPoiZero += 1;
     }
   });
 
   document.getElementById("kpi-desa").textContent =
     totalDesa.toLocaleString("id-ID");
   document.getElementById("kpi-poi").textContent =
-    poiData.length.toLocaleString("id-ID");
+    desaPoiPositive.toLocaleString("id-ID"); // Desa dengan POI > 0
   document.getElementById("kpi-komoditas").textContent =
-    komoditasSet.size.toLocaleString("id-ID");
+    desaPoiZero.toLocaleString("id-ID"); // Desa dengan POI = 0
 }
 
 // --- 5. LOGIKA UPDATE CHARTS (Menggunakan Plotly.js) ---
@@ -350,6 +419,17 @@ function updateCharts(filteredGeoJson) {
 // --- 6. LOGIKA DETAIL TABLE ---
 function formatNilai(key, value) {
   if (value === null || value === undefined) return "N/A";
+
+  // --- KASUS SPESIAL: LULC (Disesuaikan untuk kode 1-8) ---
+  if (key === "LULC") {
+    // Pastikan nilai adalah numerik dan cari di map
+    const lulcCode = parseInt(value);
+    if (!isNaN(lulcCode) && LULC_ESRI_MAP[lulcCode]) {
+      return LULC_ESRI_MAP[lulcCode];
+    }
+    // Fallback jika kode LULC tidak ditemukan (akan menggunakan 99)
+    return LULC_ESRI_MAP[99] + ` (Kode ${lulcCode})`;
+  }
 
   const numericValue = parseFloat(value);
 
