@@ -2,6 +2,7 @@
 let geojsonData = null;
 let poiData = [];
 let filteredGeojsonLayer = null;
+let countyBoundaryLayer = null; // ⬅️ BARU: Lapisan untuk Batas Kabupaten
 let poiLayer = null;
 let selectedFeature = null;
 let map = null;
@@ -49,9 +50,6 @@ const COLUMN_MAP = {
   TIPADM: "Tipe Administrasi",
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
-
-// ❌ Hapus ikon kustom yang berat
-// const poiIcon = L.icon({...});
 
 // --- INISIALISASI APLIKASI ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -211,8 +209,72 @@ function styleFeature(feature) {
     opacity: 1,
     color: "black", // Border Hitam Solid
     dashArray: "",
-    fillOpacity: 0.7,
+    fillOpacity: 0.25, // ⬅️ DIUBAH: Transparansi 25% untuk desa
   };
+}
+
+// 🎯 FUNGSI BARU: Membuat dan Menata Batas Kabupaten
+function createCountyBoundaries(geojson) {
+  // Gunakan fitur yang terfilter untuk simulasi batas luar kabupaten
+  const countyFeatures = {};
+
+  geojson.features.forEach((f) => {
+    const kab = f.properties.Kabupaten;
+    if (!countyFeatures[kab]) {
+      // Asumsi untuk visualisasi, kita hanya perlu satu fitur per kabupaten
+      countyFeatures[kab] = {
+        type: "Feature",
+        properties: { Kabupaten: kab },
+        geometry: f.geometry, // Ini tidak akan menggabungkan geometri, hanya memilih satu
+      };
+    }
+  });
+
+  const countyGeoJson = {
+    type: "FeatureCollection",
+    features: Object.values(countyFeatures),
+  };
+
+  if (countyBoundaryLayer) {
+    map.removeLayer(countyBoundaryLayer);
+  }
+
+  // Lapisan Batas Kabupaten (Simulasi Visual)
+  // Fitur disetel agar fill-nya transparan, tetapi batas luarnya tebal
+  countyBoundaryLayer = L.geoJson(geojson, {
+    // Gunakan geojson lengkap
+    style: function (feature) {
+      return {
+        fillColor: "transparent",
+        weight: 3, // ⬅️ Batas Lebih Tebal
+        opacity: 1,
+        color: "#000000", // ⬅️ Batas Hitam Solid
+        fillOpacity: 0.0, // ⬅️ Fill Benar-benar Transparan
+      };
+    },
+    // Menangani interaksi mouse untuk batas kabupaten
+    onEachFeature: function (feature, layer) {
+      layer.on({
+        mouseover: function (e) {
+          const l = e.target;
+          l.setStyle({ weight: 5, color: "#007BFF" });
+          l.bringToFront();
+          l.bindTooltip(
+            `Batas Kabupaten: ${feature.properties.Kabupaten || "N/A"}`,
+            { permanent: false, direction: "auto" }
+          ).openTooltip();
+        },
+        mouseout: function (e) {
+          countyBoundaryLayer.resetStyle(e.target);
+          e.target.closeTooltip();
+        },
+        // Tidak ada klik untuk lapisan batas ini agar fokus ke desa
+      });
+    },
+  });
+
+  // Tambahkan ke peta
+  countyBoundaryLayer.addTo(map);
 }
 
 function highlightFeature(e) {
@@ -282,6 +344,11 @@ function updateMap(filteredGeoJson) {
     selectedFeature = null;
   }
 
+  if (countyBoundaryLayer) {
+    // ⬅️ Hapus lapisan batas kabupaten jika ada
+    map.removeLayer(countyBoundaryLayer);
+  }
+
   if (layerControl) {
     map.removeControl(layerControl);
   }
@@ -297,9 +364,19 @@ function updateMap(filteredGeoJson) {
 
   updatePoiMarkers();
 
+  // ⬅️ Panggil fungsi untuk membuat batas kabupaten
+  createCountyBoundaries(filteredGeoJson);
+
+  // Pastikan batas kabupaten ada di atas desa
+  if (countyBoundaryLayer) {
+    countyBoundaryLayer.bringToFront();
+  }
+
+  // Definisikan overlayMaps BARU
   const overlayMaps = {
     "Titik POI": poiLayer,
-    "Pemetaan Desa": filteredGeojsonLayer,
+    "Batas Kabupaten/Kota": countyBoundaryLayer, // ⬅️ Tambahkan kontrol untuk Batas Kabupaten
+    "Pemetaan Desa (Komoditas)": filteredGeojsonLayer, // ⬅️ Ganti nama agar lebih jelas
   };
 
   // Base layer sudah ditambahkan di DOMContentLoaded, jadi biarkan layer control hanya mengelola overlay
@@ -335,10 +412,10 @@ function updatePoiMarkers() {
         // Keterangan saat di-hover/klik
         .bindPopup(
           `
-                <b>${name}</b><br>
-                Kategori: ${poi.category || "N/A"}<br>
-                Lon: ${lon.toFixed(4)}, Lat: ${lat.toFixed(4)}
-            `
+            <b>${name}</b><br>
+            Kategori: ${poi.category || "N/A"}<br>
+            Lon: ${lon.toFixed(4)}, Lat: ${lat.toFixed(4)}
+          `
         )
         .addTo(poiLayer);
     }
