@@ -34,3 +34,35 @@ aside {
 #kabupaten-select {
   border-radius: 0.5rem;
 }
+
+/* Style dasar kotak scroll */
+.checkbox-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 8px 10px; /* Tambahkan padding agar tidak terlalu mepet */
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+/* Pastikan setiap item memiliki margin yang baik */
+.checkbox-scroll .form-check {
+  margin-bottom: 0.5rem;
+  /* Penting: Gunakan margin-right pada label untuk memberikan jarak antara teks dan scrollbar */
+  padding-right: 10px;
+}
+
+/* Atur ukuran dan posisi checkbox agar tidak memotong teks */
+.checkbox-scroll .form-check-input {
+  float: none; /* Batalkan float default Bootstrap */
+  margin-left: 0;
+  margin-right: 8px; /* Beri jarak antara checkbox dan teks label */
+  /* Sesuaikan vertikal alignment */
+  vertical-align: middle;
+}
+
+/* Pastikan label sejajar dengan checkbox */
+.checkbox-scroll .form-check-label {
+  display: inline-block;
+  vertical-align: middle;
+}
