@@ -1,0 +1,397 @@
+// Data Global
+let geojsonData = null;
+let poiData = [];
+let filteredGeojsonLayer = null;
+let poiLayer = null;
+let selectedFeature = null;
+let map = null; // Dideklarasikan di sini agar dapat diakses secara global
+
+// Definisi Warna Kustom (mirip Python)
+const CUSTOM_COLOR_MAP = {
+  KARET: "#FFBF00", // Kuning
+  KOPI: "#492C18", // Coklat gelap
+  PADI: "#1A9B23", // Hijau
+  LAINNYA: "#808080", // Abu-abu
+};
+const MARKER_COLOR_POI = "#DC3545"; // Merah Bootstrap
+
+// Mapping Kolom
+const COLUMN_MAP = {
+  WADMKD: "Nama Desa/Kelurahan",
+  Kabupaten: "Nama Kabupaten/Kota",
+  LUAS: "Luas Wilayah",
+  EVI: "Enhanced Vegetation Index (EVI)",
+  MNDWI: "Modified Normalized Difference Water Index (MNDWI)",
+  NBR: "Normalized Burn Ratio (NBR)",
+  NDRE: "Normalized Difference Red Edge (NDRE)",
+  NDVI: "Normalized Difference Vegetation Index (NDVI)",
+  NDWI: "Normalized Difference Water Index (NDWI)",
+  RVI: "Ratio Vegetation Index (RVI)",
+  SAVI: "Soil Adjusted Vegetation Index (SAVI)",
+  Elevation: "Ketinggian (mdpl)",
+  Slope: "Kemiringan Lahan (Derajat)",
+  Rainfall: "Curah Hujan",
+  TCI: "Thermal Condition Index (TCI)",
+  Prediksi: "Komoditas Unggulan",
+  jumlah_poi: "Jumlah POI Lokal",
+};
+const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
+
+// --- INISIALISASI APLIKASI ---
+document.addEventListener("DOMContentLoaded", () => {
+  // Inisialisasi Peta Leaflet
+  map = L.map("map", {
+    scrollWheelZoom: true,
+  }).setView([2.0, 99.5], 8);
+
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution: "Esri World Imagery",
+      maxZoom: 18,
+    }
+  ).addTo(map);
+
+  poiLayer = L.featureGroup().addTo(map);
+
+  // Muat data dan terapkan listener
+  loadData();
+  document
+    .getElementById("apply-filter-btn")
+    .addEventListener("click", applyFilter);
+});
+
+// --- 1. FUNGSI MEMUAT DATA ASYNC ---
+async function loadData() {
+  try {
+    const [geoJsonRes, poiJsonRes] = await Promise.all([
+      fetch("data_desa.geojson"),
+      fetch("data_poi.json"),
+    ]);
+
+    geojsonData = await geoJsonRes.json();
+    poiData = await poiJsonRes.json();
+
+    populateKabupatenFilter();
+    applyFilter();
+  } catch (error) {
+    console.error("Gagal memuat data GeoJSON atau POI:", error);
+    document.getElementById("filter-status").innerHTML =
+      '<span class="text-danger">❌ Gagal memuat data. Pastikan file `data_desa.geojson` dan `data_poi.json` tersedia.</span>';
+  }
+}
+
+// --- 2. LOGIKA FILTER (Pengganti Pandas/GeoPandas Filter) ---
+function populateKabupatenFilter() {
+  const select = document.getElementById("kabupaten-select");
+  const kabList = new Set(
+    geojsonData.features.map((f) => f.properties.Kabupaten)
+  );
+
+  select.innerHTML = "";
+
+  [...kabList].sort().forEach((kab) => {
+    const option = document.createElement("option");
+    option.value = kab;
+    option.textContent = kab;
+    select.appendChild(option);
+  });
+}
+
+function applyFilter() {
+  const select = document.getElementById("kabupaten-select");
+  const selectedKabupaten = Array.from(select.selectedOptions).map(
+    (option) => option.value
+  );
+
+  let filteredFeatures = geojsonData.features;
+
+  if (selectedKabupaten.length > 0) {
+    filteredFeatures = geojsonData.features.filter((f) =>
+      selectedKabupaten.includes(f.properties.Kabupaten)
+    );
+    document.getElementById(
+      "filter-status"
+    ).innerHTML = `<span class="text-success">✔️ ${selectedKabupaten.length} Kabupaten/Kota terpilih.</span>`;
+  } else {
+    // Jika tidak ada yang dipilih, tampilkan semua (mode default)
+    document.getElementById(
+      "filter-status"
+    ).innerHTML = `<span class="text-warning">⚠️ Menampilkan semua ${geojsonData.features.length} desa.</span>`;
+  }
+
+  const filteredGeoJson = {
+    type: "FeatureCollection",
+    features: filteredFeatures,
+  };
+
+  updateMap(filteredGeoJson);
+  updateKPI(filteredGeoJson);
+  updateCharts(filteredGeoJson);
+  updateDetailTable(null); // Reset detail
+}
+
+// --- 3. LOGIKA UPDATE PETA (Pengganti Folium/Streamlit-Folium) ---
+function getStyle(feature) {
+  const prediksi = (feature.properties.Prediksi || "LAINNYA").toUpperCase();
+  const color = CUSTOM_COLOR_MAP[prediksi] || CUSTOM_COLOR_MAP["LAINNYA"];
+
+  let weight = 0.5;
+  let outlineColor = "black";
+
+  if (
+    selectedFeature &&
+    selectedFeature.properties.WADMKD === feature.properties.WADMKD
+  ) {
+    weight = 3;
+    outlineColor = "white";
+  }
+
+  return {
+    fillColor: color,
+    color: outlineColor,
+    weight: weight,
+    fillOpacity: 0.7,
+  };
+}
+
+function onEachFeature(feature, layer) {
+  const props = feature.properties;
+  const popupContent = `
+        <b>Desa:</b> ${props.WADMKD}<br>
+        <b>Kabupaten:</b> ${props.Kabupaten}<br>
+        <b>Komoditas:</b> ${props.Prediksi}<br>
+        <b>Jumlah POI:</b> ${props.jumlah_poi}
+    `;
+  layer.bindPopup(popupContent);
+
+  layer.on("click", function (e) {
+    // Reset style fitur yang sebelumnya diklik
+    if (selectedFeature && filteredGeojsonLayer) {
+      filteredGeojsonLayer.eachLayer(function (l) {
+        if (l.feature.properties.WADMKD === selectedFeature.properties.WADMKD) {
+          l.setStyle(getStyle(l.feature));
+        }
+      });
+    }
+
+    // Simpan dan beri style baru
+    selectedFeature = feature;
+    layer.setStyle({
+      weight: 3,
+      color: "white",
+    });
+
+    updateDetailTable(feature.properties);
+  });
+}
+
+function updateMap(filteredGeoJson) {
+  // Hapus layer GeoJSON lama
+  if (filteredGeojsonLayer) {
+    map.removeLayer(filteredGeojsonLayer);
+  }
+  // Hapus layer POI lama
+  poiLayer.clearLayers();
+
+  // Tambahkan layer GeoJSON baru
+  if (filteredGeoJson.features.length > 0) {
+    filteredGeojsonLayer = L.geoJSON(filteredGeoJson, {
+      style: getStyle,
+      onEachFeature: onEachFeature,
+    }).addTo(map);
+
+    try {
+      map.fitBounds(filteredGeojsonLayer.getBounds());
+    } catch (e) {
+      // Fallback jika getBounds() gagal (misalnya hanya 1 titik)
+      map.setView([2.0, 99.5], 8);
+    }
+  } else {
+    map.setView([2.0, 99.5], 8); // Reset view jika tidak ada data
+  }
+
+  // Tambahkan Marker POI (Semua POI)
+  poiData.forEach((row) => {
+    try {
+      const lat = parseFloat(row.latitude);
+      const lon = parseFloat(row.longitude);
+      const poiName = row.name || `POI-${poiData.indexOf(row) + 1}`;
+      const poiCategory = row.Kategori_POI || "Umum";
+      const poiKabupaten = row.Kabupaten || "N/A";
+
+      L.circleMarker([lat, lon], {
+        radius: 4,
+        color: MARKER_COLOR_POI,
+        weight: 1,
+        fill: true,
+        fillColor: MARKER_COLOR_POI,
+        fillOpacity: 0.7,
+      })
+        .bindPopup(
+          `<b>${poiName}</b><br>Kategori: ${poiCategory}<br>Kabupaten: ${poiKabupaten}`
+        )
+        .addTo(poiLayer);
+    } catch (e) {
+      // Abaikan POI dengan koordinat tidak valid
+    }
+  });
+
+  // Layer Control (optional)
+  L.control
+    .layers(null, {
+      "Desa Terpilih": filteredGeojsonLayer,
+      "Point of Interest": poiLayer,
+    })
+    .addTo(map);
+}
+
+// --- 4. LOGIKA UPDATE KPI ---
+function updateKPI(filteredGeoJson) {
+  const totalDesa = filteredGeoJson.features.length;
+  const komoditasSet = new Set();
+
+  filteredGeoJson.features.forEach((f) => {
+    if (f.properties.Prediksi) {
+      komoditasSet.add(f.properties.Prediksi);
+    }
+  });
+
+  document.getElementById("kpi-desa").textContent =
+    totalDesa.toLocaleString("id-ID");
+  document.getElementById("kpi-poi").textContent =
+    poiData.length.toLocaleString("id-ID");
+  document.getElementById("kpi-komoditas").textContent =
+    komoditasSet.size.toLocaleString("id-ID");
+}
+
+// --- 5. LOGIKA UPDATE CHARTS (Menggunakan Plotly.js) ---
+function updateCharts(filteredGeoJson) {
+  const features = filteredGeoJson.features;
+
+  // Chart 1: Distribusi Desa per Komoditas (Pengganti Pandas value_counts)
+  const komoditasCount = features.reduce((acc, f) => {
+    const komoditas = f.properties.Prediksi || "LAINNYA";
+    acc[komoditas] = (acc[komoditas] || 0) + 1;
+    return acc;
+  }, {});
+
+  const komoditasData = Object.entries(komoditasCount)
+    .map(([komoditas, count]) => ({
+      Komoditas: komoditas,
+      Jumlah: count,
+    }))
+    .sort((a, b) => a.Jumlah - b.Jumlah);
+
+  const layoutKomoditas = {
+    title: "Jumlah Desa berdasarkan Komoditas",
+    margin: { t: 40, l: 100, r: 10, b: 20 },
+    height: 350,
+    xaxis: { title: "Jumlah Desa" },
+    yaxis: { automargin: true },
+  };
+
+  Plotly.newPlot(
+    "chart-komoditas",
+    [
+      {
+        x: komoditasData.map((d) => d.Jumlah),
+        y: komoditasData.map((d) => d.Komoditas),
+        type: "bar",
+        orientation: "h",
+        marker: {
+          color: komoditasData.map(
+            (d) => CUSTOM_COLOR_MAP[d.Komoditas.toUpperCase()] || "#808080"
+          ),
+        },
+      },
+    ],
+    layoutKomoditas
+  );
+
+  // Chart 2: Total POI per Kabupaten/Kota (Pengganti Pandas Groupby Sum)
+  const poiSum = features.reduce((acc, f) => {
+    const kabupaten = f.properties.Kabupaten || "N/A";
+    const jumlahPoi = f.properties.jumlah_poi || 0;
+    acc[kabupaten] = (acc[kabupaten] || 0) + jumlahPoi;
+    return acc;
+  }, {});
+
+  const poiDataKab = Object.entries(poiSum)
+    .map(([kab, count]) => ({
+      Kabupaten: kab,
+      Jumlah: count,
+    }))
+    .sort((a, b) => b.Jumlah - a.Jumlah);
+
+  const layoutPoi = {
+    title: "Total POI berdasarkan Kabupaten/Kota",
+    margin: { t: 40, l: 40, r: 10, b: 120 },
+    height: 350,
+    xaxis: { title: "Kabupaten/Kota", tickangle: 45 },
+    yaxis: { title: "Total POI" },
+  };
+
+  Plotly.newPlot(
+    "chart-poi",
+    [
+      {
+        x: poiDataKab.map((d) => d.Kabupaten),
+        y: poiDataKab.map((d) => d.Jumlah),
+        type: "bar",
+        marker: {
+          color: poiDataKab.map((d) => d.Jumlah),
+          colorscale: "Viridis",
+        },
+      },
+    ],
+    layoutPoi
+  );
+}
+
+// --- 6. LOGIKA DETAIL TABLE ---
+function formatNilai(key, value) {
+  if (value === null || value === undefined) return "N/A";
+
+  const numericValue = parseFloat(value);
+
+  if (!isNaN(numericValue)) {
+    if (key === "LUAS") {
+      return `${numericValue.toFixed(2)} km\u00b2`;
+    }
+    // Format angka desimal lainnya
+    return numericValue.toFixed(2);
+  }
+
+  // Jika non-numerik (string)
+  return String(value);
+}
+
+function updateDetailTable(properties) {
+  const tableBody = document.getElementById("detail-table-body");
+  const titlePlaceholder = document.getElementById("detail-title-placeholder");
+
+  tableBody.innerHTML = "";
+  titlePlaceholder.innerHTML = "";
+
+  if (!properties) {
+    tableBody.innerHTML =
+      '<tr><td colspan="2">Klik desa untuk melihat data.</td></tr>';
+    titlePlaceholder.innerHTML =
+      '<p class="mb-2">Silakan **klik** pada salah satu desa di peta untuk menampilkan detail atribut.</p>';
+    return;
+  }
+
+  titlePlaceholder.innerHTML = `<p class="mb-2"><strong>Detail untuk Desa/Kelurahan: ${
+    properties.WADMKD || "-"
+  }</strong></p>`;
+
+  DISPLAY_COLUMNS.forEach((colKey) => {
+    const row = tableBody.insertRow();
+    const attrCell = row.insertCell();
+    const valueCell = row.insertCell();
+
+    attrCell.textContent = COLUMN_MAP[colKey];
+    valueCell.textContent = formatNilai(colKey, properties[colKey]);
+  });
+}

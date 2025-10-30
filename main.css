@@ -1,0 +1,14 @@
+/* Pastikan peta memiliki z-index yang baik */
+#map {
+  z-index: 1;
+}
+
+/* Kustomisasi Sidebar */
+.bg-light {
+  background-color: #f8f9fa !important; /* Warna Bootstrap */
+}
+
+/* Jarak vertikal agar konten tidak tertutup fixed navbar */
+body {
+  padding-top: 56px;
+}
