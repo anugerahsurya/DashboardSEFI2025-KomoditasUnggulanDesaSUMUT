@@ -47,8 +47,7 @@ aside {
 
 /* Pastikan setiap item memiliki margin yang baik */
 .checkbox-scroll .form-check {
-  margin-bottom: 0.5rem;
-  /* Penting: Gunakan margin-right pada label untuk memberikan jarak antara teks dan scrollbar */
+  margin-bottom: 0.2rem; /* Sedikit dikurangi */
   padding-right: 10px;
 }
 
@@ -57,12 +56,15 @@ aside {
   float: none; /* Batalkan float default Bootstrap */
   margin-left: 0;
   margin-right: 8px; /* Beri jarak antara checkbox dan teks label */
-  /* Sesuaikan vertikal alignment */
   vertical-align: middle;
 }
 
-/* Pastikan label sejajar dengan checkbox */
+/* MODIFIKASI UTAMA: Pastikan label sejajar dan tidak ada wrapping pada teks */
 .checkbox-scroll .form-check-label {
   display: inline-block;
   vertical-align: middle;
+  white-space: nowrap; /* Mencegah teks melipat ke bawah */
+  overflow: hidden; /* Sembunyikan jika label terlalu panjang */
+  text-overflow: ellipsis; /* Tambahkan elipsis jika disembunyikan */
+  max-width: 90%; /* Batasi lebar label agar tidak keluar dari container */
 }
