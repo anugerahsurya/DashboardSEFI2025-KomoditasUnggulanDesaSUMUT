@@ -1,5 +1,5 @@
 /* ================================================= */
-/* 🌐 MAIN.CSS - Styling Dashboard Komoditas & Peta  */
+/* 🌐 MAIN.CSS - Styling Dashboard Komoditas & Peta  */
 /* ================================================= */
 
 /* Global Font & Background */
@@ -9,23 +9,96 @@ body {
 }
 
 /* ================================================= */
+/* 🏠 LANDING PAGE (Final Version: Fluid & 1-View) */
+/* ================================================= */
+.landing-page {
+  height: 100vh;
+  /* Ganti dengan URL gambar Komoditas Unggulan Anda */
+  background-image: url("https://images.pexels.com/photos/974314/pexels-photo-974314.jpeg");
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  color: white;
+
+  /* PENYESUAIAN: TAMBAH JARAK DENGAN NAVBAR (Mengimbangi fixed-top) */
+  padding-top: 5rem;
+
+  /* 🔥 SHADOW BAWAH: Memberi bayangan agar terpisah dari section putih di bawahnya */
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+  z-index: 1; /* Pastikan shadow tampil di atas konten berikutnya */
+}
+
+/* Overlay hitam transparan */
+.landing-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* Hitam dengan transparansi 50% */
+}
+
+/* Membuat konten berada di atas overlay */
+.landing-content {
+  z-index: 10;
+  padding: 10px;
+  max-width: 900px;
+}
+
+/* Mengubah warna tombol sesuai warna navigasi (#C70039) */
+.btn-custom {
+  background-color: #c70039;
+  border-color: #c70039;
+  color: white;
+  padding: 12px 35px;
+  font-size: 1.25rem;
+  transition: background-color 0.3s ease;
+}
+.btn-custom:hover {
+  background-color: #a3002d;
+  border-color: #a3002d;
+  color: white;
+}
+
+/* 🔥 FLUID TYPOGRAPHY H1 (LEBIH KECIL DAN AGRESIF) */
+.landing-content h1 {
+  /* Min: 1.6rem, Fluid: 3vw, Max: 3rem */
+  font-size: clamp(1.6rem, 3vw, 3rem);
+  line-height: 1.1;
+  font-weight: 700 !important;
+  margin-bottom: 0.8em !important;
+}
+
+/* Menyesuaikan jarak pada paragraf penulis/tim */
+.landing-content .lead {
+  margin-bottom: 2rem !important;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* ================================================= */
 /* 🧭 SIDEBAR & FILTER SECTION */
 /* ================================================= */
 
 aside {
-  padding-top: 2rem !important;
   padding-bottom: 2rem !important;
 }
 
 .filter-section {
   border: none !important;
-  border-radius: 1rem !important; /* Sudut membulat */
+  border-radius: 1rem !important;
 }
 
 /* Tombol Terapkan Filter (warna merah khas OJK) */
 .btn-w-100 {
   background-color: #c70039 !important;
   border-color: #c70039 !important;
+  color: white !important;
 }
 
 .btn-w-100:hover {
@@ -33,40 +106,77 @@ aside {
   border-color: #a0002e !important;
 }
 
-/* Select Filter (jika masih digunakan di masa depan) */
-#kabupaten-select {
-  border-radius: 0.5rem;
+/* ================================================= */
+/* 📝 INFO SECTION (Blok Penjelasan) */
+/* ================================================= */
+
+/* ================================================= */
+/* 📝 INFO SECTION (Blok Penjelasan) */
+/* ================================================= */
+
+.info-section {
+  background-color: white;
+  position: relative;
+  margin-bottom: 0;
+}
+
+/* 🔥 Ikon akan menggunakan warna merah OJK (#C70039) */
+.icon-primary-color {
+  color: #c70039;
+}
+
+.icon-large {
+  font-size: 3.5rem; /* Ukuran ikon sedikit diperbesar */
+  display: block;
+}
+
+/* Styling Card Penjelasan */
+.info-card {
+  border: none; /* Hilangkan border default card */
+  transition: transform 0.3s ease-in-out;
+}
+.info-card:hover {
+  transform: translateY(-5px); /* Efek melayang saat di-hover */
+}
+
+.info-card .card-title {
+  color: #333; /* Warna gelap untuk judul card */
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
 }
 
 /* ================================================= */
-/* ✅ CHECKBOX FILTER AREA (Sudah Disesuaikan) */
+/* 🦶 FOOTER STYLES */
+/* ================================================= */
+footer {
+  border-top: 3px solid #c70039; /* Garis pemisah tipis dengan warna OJK */
+}
+
+/* ================================================= */
+/* ✅ CHECKBOX FILTER AREA (Perbaikan Perataan) */
 /* ================================================= */
 
 .checkbox-scroll {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid #ccc;
-  padding: 8px 10px; /* Padding di sekitar scroll container */
+  padding: 8px 10px;
   border-radius: 4px;
   margin-bottom: 12px;
 }
 
-/* Setiap item dalam daftar checkbox */
 .checkbox-scroll .form-check {
   margin-bottom: 0.2rem;
   padding-right: 10px;
-  /* PERBAIKAN: Hapus padding kiri default Bootstrap untuk perataan ketat */
-  padding-left: 0 !important;
+  padding-left: 1.5em;
+  text-align: left;
 }
 
 /* Checkbox alignment */
 .checkbox-scroll .form-check-input {
-  float: none;
-  /* PERBAIKAN: Pastikan margin kiri 0 untuk menggeser checkbox ke kiri */
-  margin-left: 0;
-  margin-right: 8px; /* Jarak antara checkbox dan label */
-  vertical-align: middle;
-  /* Atur sedikit margin atas untuk perataan vertikal yang lebih baik dengan label */
+  float: left;
+  margin-left: -1.5em;
+  vertical-align: top;
   margin-top: 0.25em;
 }
 
@@ -74,10 +184,61 @@ aside {
 .checkbox-scroll .form-check-label {
   display: inline-block;
   vertical-align: middle;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* ================================================= */
+/* 📈 DASHBOARD ELEMENTS (KPI, MAP, CHART) */
+/* ================================================= */
+
+/* Memberikan gaya untuk Kontainer Utama Dashboard */
+main {
+  padding-top: 1rem;
+}
+
+/* KPI Cards */
+.card {
+  border-radius: 0.75rem;
+}
+.card-body h6.card-subtitle {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+.card-body p.card-text {
+  margin-top: 0.2rem;
+}
+
+/* Map Container */
+#map {
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Chart Cards (Plotly) */
+.card-header {
+  background-color: #e9ecef;
+  font-weight: 600;
+  font-size: 1.05rem;
+  border-top-left-radius: calc(0.75rem - 1px);
+  border-top-right-radius: calc(0.75rem - 1px);
+}
+
+/* Detail Data Table */
+.table-responsive {
+  border-radius: 0.5rem;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 95%; /* Disesuaikan lebih lebar karena padding kiri hilang */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.table thead.table-secondary th {
+  background-color: #c70039;
+  color: white;
+  font-weight: 600;
+  border-color: #a3002d;
+}
+.table-striped > tbody > tr:nth-of-type(odd) {
+  background-color: #f3f3f3;
 }
 
 /* ================================================= */
@@ -104,28 +265,22 @@ aside {
 .legend i {
   width: 18px;
   height: 18px;
-  /* Hapus float: left; untuk perataan vertikal */
-  /* float: left; */
-  display: inline-block; /* Pastikan tetap bisa mengatur lebar/tinggi */
-  vertical-align: middle; /* Sejajarkan ikon dengan teks */
+  display: inline-block;
+  vertical-align: middle;
   margin-right: 8px;
   opacity: 0.8;
   border-radius: 3px;
-  border: 1px solid #ccc; /* Penting untuk warna putih */
+  border: 1px solid #ccc;
 }
 
 /* Gaya untuk setiap item legenda (teks & ikon) agar menjadi baris terpisah */
 .legend .legend-item {
-  display: flex; /* Gunakan flexbox untuk perataan horizontal ikon dan teks */
-  align-items: center; /* Sejajarkan item secara vertikal di tengah */
-  margin-bottom: 5px; /* Tambah sedikit ruang antar item */
-}
-/* Pastikan teks label legenda juga memiliki gaya yang konsisten */
-.legend .legend-item span {
-  vertical-align: middle;
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
 }
 
-/* === Ini adalah gaya yang sudah ada, biarkan saja === */
+/* === Label Peta (Tooltip) === */
 .kab-label-tooltip {
   background: transparent !important;
   border: none !important;
