@@ -45,6 +45,7 @@ const COLUMN_MAP = {
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
   jumlah_poi: "Jumlah POI Fasilitas Keuangan",
+  TIPADM: "Tipe Administrasi",
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
@@ -63,7 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ).addTo(map);
 
-  // poiLayer harus diinisialisasi untuk menampung marker POI
   poiLayer = L.featureGroup().addTo(map);
 
   loadData();
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     .addEventListener("click", resetFilter);
 });
 
-// --- 1. FUNGSI MEMUAT DATA ASYNC ---
+// --- 1. FUNGSI MEMUAT DATA ASYNC (DIPERBAIKI) ---
 async function loadData() {
   try {
     const [geoJsonRes, poiJsonRes] = await Promise.all([
@@ -87,7 +87,15 @@ async function loadData() {
     poiData = await poiJsonRes.json();
 
     populateFilters();
-    applyFilter(); // Memanggil applyFilter akan memanggil updateMap, yang pada gilirannya memanggil updatePoiMarkers
+    applyFilter();
+
+    // Pasang semua POI di layer global dan zoom ke batas POI
+    updatePoiMarkers();
+
+    // Zoom ke batas POI (opsional, untuk memastikan terlihat saat load)
+    if (poiLayer.getLayers().length > 0) {
+      map.fitBounds(poiLayer.getBounds());
+    }
   } catch (error) {
     console.error("Gagal memuat data GeoJSON atau POI:", error);
     document.getElementById("filter-status").innerHTML =
@@ -279,25 +287,32 @@ function updateMap(filteredGeoJson) {
 
   if (filteredGeojsonLayer.getLayers().length > 0) {
     map.fitBounds(filteredGeojsonLayer.getBounds());
-  } else {
-    map.setView([2.0, 99.5], 8);
   }
 
-  // Panggil POI
-  updatePoiMarkers(); // Tidak memerlukan argumen filteredGeoJson lagi
+  updatePoiMarkers();
 }
 
-// 🎯 FUNGSI UTAMA UNTUK PLOTTING SEMUA POI (TANPA FILTER) 🎯
+// 🎯 FUNGSI PLOTTING SEMUA POI (MENGGUNAKAN ATRIBUT BARU) 🎯
 function updatePoiMarkers() {
   poiLayer.clearLayers();
 
-  // Iterasi SEMUA data POI yang sudah dimuat secara global
   poiData.forEach((poi) => {
-    const lat = parseFloat(poi.lat);
-    const lon = parseFloat(poi.lon);
+    // 🔥 KOREKSI ATRIBUT DI SINI
+    const lat = parseFloat(poi.latitude);
+    const lon = parseFloat(poi.longitude);
+
+    // Gunakan poi.name untuk popup
+    const name = poi.name || poi.category || "POI";
 
     // Hanya plot jika koordinat valid
-    if (!isNaN(lat) && !isNaN(lon)) {
+    if (
+      !isNaN(lat) &&
+      !isNaN(lon) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lon >= -180 &&
+      lon <= 180
+    ) {
       L.circleMarker([lat, lon], {
         radius: 4,
         fillColor: MARKER_COLOR_POI,
@@ -306,7 +321,8 @@ function updatePoiMarkers() {
         opacity: 1,
         fillOpacity: 0.8,
       })
-        .bindPopup(`<b>${poi.name}</b><br>Desa: ${poi.WADMKD || "N/A"}`)
+        // Gunakan poi.category jika poi.name tidak ada
+        .bindPopup(`<b>${name}</b><br>Kategori: ${poi.category || "N/A"}`)
         .addTo(poiLayer);
     }
   });
@@ -316,13 +332,11 @@ function updatePoiMarkers() {
 function updateKPI(filteredGeoJson) {
   const features = filteredGeoJson.features;
 
-  // TIPADM = 1 hanya untuk kpi-desa
   const desaFeatures = features.filter((f) => f.properties.TIPADM == 1);
 
   let wilayahPoiPositive = 0;
   let wilayahPoiZero = 0;
 
-  // Perhitungan POI menggunakan SEMUA fitur
   features.forEach((f) => {
     const jumlahPoi = f.properties.jumlah_poi || 0;
     if (jumlahPoi > 0) {
@@ -332,15 +346,12 @@ function updateKPI(filteredGeoJson) {
     }
   });
 
-  // KPI 1: Total Desa (Hanya TIPADM=1)
   document.getElementById("kpi-desa").textContent =
     desaFeatures.length.toLocaleString("id-ID");
 
-  // KPI 2: Wilayah dengan POI > 0 (SEMUA fitur)
   document.getElementById("kpi-poi").textContent =
     wilayahPoiPositive.toLocaleString("id-ID");
 
-  // KPI 3: Wilayah dengan POI = 0 (SEMUA fitur)
   document.getElementById("kpi-komoditas").textContent =
     wilayahPoiZero.toLocaleString("id-ID");
 }
