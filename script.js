@@ -15,16 +15,6 @@ const CUSTOM_COLOR_MAP = {
 };
 const MARKER_COLOR_POI = "#DC3545"; // Merah Bootstrap
 
-// --- MAPPING LULC SESUAI URUTAN LEGENDA (KODE 1 SAMPAI 8) ---
-// Asumsi:
-// 1 = Water
-// 2 = Trees
-// 3 = Grass
-// 4 = Flooded Vegetation
-// 5 = Crops
-// 6 = Shrub and Scrub
-// 7 = Built
-// 8 = Bare
 const LULC_ESRI_MAP = {
   1: "Badan Air", // Water
   2: "Pohon / Hutan", // Trees
@@ -55,6 +45,7 @@ const COLUMN_MAP = {
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
   jumlah_poi: "Jumlah POI Fasilitas Keuangan",
+  TIPADM: "Tipe Administrasi",
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
@@ -73,12 +64,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ).addTo(map);
 
-  poiLayer = L.featureGroup().addTo(map); // Muat data dan terapkan listener
+  poiLayer = L.featureGroup().addTo(map);
 
   loadData();
   document
     .getElementById("apply-filter-btn")
-    .addEventListener("click", applyFilter); // Tambahkan listener untuk Tombol Reset
+    .addEventListener("click", applyFilter);
   document
     .getElementById("reset-filter-btn")
     .addEventListener("click", resetFilter);
@@ -114,7 +105,7 @@ function populateFilters() {
   const kabList = new Set();
   const komoditasList = new Set();
 
-  // 🟢 Ubah: jangan filter berdasarkan TIPADM == 1
+  // Mengambil semua nilai dari semua fitur (tanpa filter TIPADM)
   geojsonData.features.forEach((f) => {
     kabList.add(f.properties.Kabupaten);
     if (f.properties.Prediksi) {
@@ -151,6 +142,7 @@ function applyFilter() {
     (option) => option.value
   );
 
+  // Filter dimulai dari SEMUA fitur (tidak ada filter implisit)
   let filteredFeatures = geojsonData.features;
 
   // 1️⃣ Filter Kabupaten
@@ -167,7 +159,7 @@ function applyFilter() {
     );
   }
 
-  // 🟢 Hapus filter TIPADM == 1 (biar semua unit tetap muncul)
+  // Update Status
   const filterCount = selectedKabupaten.length + selectedKomoditas.length;
   const totalAll = geojsonData.features.length;
 
@@ -181,7 +173,6 @@ function applyFilter() {
     ).innerHTML = `<span class="text-warning">⚠️ Menampilkan semua ${totalAll} wilayah.</span>`;
   }
 
-  // 🟢 Kirim langsung tanpa pisahkan TIPADM=1
   const filteredGeoJson = {
     type: "FeatureCollection",
     features: filteredFeatures,
@@ -191,6 +182,160 @@ function applyFilter() {
   updateKPI(filteredGeoJson);
   updateCharts(filteredGeoJson);
   updateDetailTable(null);
+}
+
+// FUNGSI RESET FILTER
+function resetFilter() {
+  // Deselect semua opsi
+  Array.from(document.getElementById("kabupaten-select").options).forEach(
+    (option) => (option.selected = false)
+  );
+  Array.from(document.getElementById("komoditas-select").options).forEach(
+    (option) => (option.selected = false)
+  );
+  applyFilter();
+}
+
+// --- 3. LOGIKA PETA (Leaflet) ---
+
+// Fungsi untuk menentukan warna berdasarkan komoditas
+function getColor(d) {
+  const komoditas = (d || "LAINNYA").toUpperCase();
+  return CUSTOM_COLOR_MAP[komoditas] || CUSTOM_COLOR_MAP.LAINNYA;
+}
+
+// Fungsi styling GeoJSON
+function styleFeature(feature) {
+  return {
+    fillColor: getColor(feature.properties.Prediksi),
+    weight: 1.5,
+    opacity: 1,
+    color: "white",
+    dashArray: "3",
+    fillOpacity: 0.7,
+  };
+}
+
+// Fungsi Highlight saat Mouse Over
+function highlightFeature(e) {
+  const layer = e.target;
+
+  // Pastikan layer yang di-highlight bukan yang sedang dipilih
+  if (layer !== selectedFeature) {
+    layer.setStyle({
+      weight: 3,
+      color: "#666",
+      dashArray: "",
+      fillOpacity: 0.9,
+    });
+    if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+      layer.bringToFront();
+    }
+  }
+
+  // Tampilkan tooltip sederhana
+  const props = layer.feature.properties;
+  layer
+    .bindTooltip(
+      `<b>${props.WADMKD || props.Kabupaten}</b><br>${props.Prediksi || "N/A"}`
+    )
+    .openTooltip();
+}
+
+// Fungsi Reset Highlight saat Mouse Out
+function resetHighlight(e) {
+  const layer = e.target;
+  if (layer !== selectedFeature) {
+    // Kembalikan gaya ke default
+    filteredGeojsonLayer.resetStyle(layer);
+  }
+}
+
+// Fungsi Saat Klik (Select Feature)
+function zoomToFeature(e) {
+  const layer = e.target;
+
+  // 1. Reset gaya fitur yang sebelumnya dipilih (jika ada)
+  if (selectedFeature) {
+    filteredGeojsonLayer.resetStyle(selectedFeature);
+  }
+
+  // 2. Terapkan gaya 'selected' pada fitur baru
+  layer.setStyle({
+    weight: 5,
+    color: "#007BFF", // Biru terang untuk border
+    dashArray: "",
+    fillOpacity: 0.7,
+  });
+
+  // 3. Simpan fitur yang dipilih
+  selectedFeature = layer;
+
+  // 4. Update Detail Table
+  updateDetailTable(layer.feature.properties);
+
+  // 5. Zoom ke fitur
+  map.fitBounds(layer.getBounds());
+}
+
+// Fungsi untuk menambahkan interaksi ke setiap fitur
+function onEachFeature(feature, layer) {
+  layer.on({
+    mouseover: highlightFeature,
+    mouseout: resetHighlight,
+    click: zoomToFeature,
+  });
+}
+
+// Fungsi utama untuk mengupdate peta
+function updateMap(filteredGeoJson) {
+  // 1. Hapus layer GeoJSON lama (jika ada)
+  if (filteredGeojsonLayer) {
+    map.removeLayer(filteredGeojsonLayer);
+    selectedFeature = null; // Reset fitur yang dipilih
+  }
+
+  // 2. Tambahkan layer GeoJSON yang baru difilter
+  filteredGeojsonLayer = L.geoJson(filteredGeoJson, {
+    style: styleFeature,
+    onEachFeature: onEachFeature,
+  }).addTo(map);
+
+  // 3. Zoom ke bounds semua fitur
+  if (filteredGeojsonLayer.getLayers().length > 0) {
+    map.fitBounds(filteredGeojsonLayer.getBounds());
+  } else {
+    // Fallback jika tidak ada fitur (misalnya, reset view)
+    map.setView([2.0, 99.5], 8);
+  }
+
+  // 4. Update POI Markers (jika perlu)
+  updatePoiMarkers(filteredGeoJson);
+}
+
+// Fungsi untuk mengupdate POI Markers
+function updatePoiMarkers(filteredGeoJson) {
+  poiLayer.clearLayers();
+
+  const visibleWADMKD = new Set(
+    filteredGeoJson.features.map((f) => f.properties.WADMKD)
+  );
+
+  poiData.forEach((poi) => {
+    // Hanya tampilkan POI yang WADMKD-nya ada di hasil filter
+    if (visibleWADMKD.has(poi.WADMKD)) {
+      L.circleMarker([poi.lat, poi.lon], {
+        radius: 4,
+        fillColor: MARKER_COLOR_POI,
+        color: "#000",
+        weight: 0.5,
+        opacity: 1,
+        fillOpacity: 0.8,
+      })
+        .bindPopup(`<b>${poi.name}</b><br>Desa: ${poi.WADMKD || "N/A"}`)
+        .addTo(poiLayer);
+    }
+  });
 }
 
 // --- 4. LOGIKA UPDATE KPI ---
@@ -235,6 +380,7 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
+    title: { text: "Distribusi Komoditas", font: { size: 14 } },
     margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Jumlah Wilayah" },
@@ -256,7 +402,8 @@ function updateCharts(filteredGeoJson) {
         },
       },
     ],
-    layoutKomoditas
+    layoutKomoditas,
+    { displayModeBar: false }
   );
 
   // CHART 2: Top 10 Berdasarkan Jumlah POI
@@ -271,6 +418,10 @@ function updateCharts(filteredGeoJson) {
     .reverse();
 
   const layoutPoi = {
+    title: {
+      text: "Top 10 Wilayah Berdasarkan POI Keuangan",
+      font: { size: 14 },
+    },
     margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Total POI" },
@@ -290,7 +441,8 @@ function updateCharts(filteredGeoJson) {
         },
       },
     ],
-    layoutPoi
+    layoutPoi,
+    { displayModeBar: false }
   );
 }
 
