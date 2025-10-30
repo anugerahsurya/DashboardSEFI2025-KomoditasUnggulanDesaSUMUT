@@ -339,8 +339,8 @@ function updateMap(filteredGeoJson) {
   if (filteredGeojsonLayer) {
     L.control
       .layers(null, {
-        "Desa Terpilih": filteredGeojsonLayer,
-        "Point of Interest": poiLayer,
+        "Komoditas Unggulan Desa": filteredGeojsonLayer,
+        "POI Fasilitas Keuangan": poiLayer,
       })
       .addTo(map);
   }
@@ -387,7 +387,6 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
-    title: "Distribusi Desa per Komoditas Unggulan",
     margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Jumlah Desa" },
@@ -424,7 +423,6 @@ function updateCharts(filteredGeoJson) {
     .reverse(); // Balikkan urutan untuk Plotly (tertinggi di atas)
 
   const layoutPoi = {
-    title: "Top 10 Desa dengan POI Fasilitas Keuangan Terbanyak",
     margin: { t: 40, l: 120, r: 10, b: 40 }, // Margin disesuaikan
     height: 350,
     xaxis: { title: "Total POI" },
