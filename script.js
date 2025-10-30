@@ -18,7 +18,12 @@ const CUSTOM_COLOR_MAP = {
   LAINNYA: "#A9A9A9",
 };
 const COLOR_NO_POI = "#696969";
-const MARKER_COLOR_POI = "#DC3545";
+// Ganti MARKER_COLOR_POI menjadi warna merah yang sedikit lebih gelap (tidak terlalu jreng)
+const MARKER_COLOR_POI = "#B22222"; // FireBrick, lebih kalem dari DC3545
+
+// Warna untuk Chart Komoditas (Cluster Bar)
+const CHART_COLOR_WITH_POI = "#4682B4"; // Steel Blue
+const CHART_COLOR_WITHOUT_POI = "#CC3333"; // Merah Calmer
 
 const LULC_ESRI_MAP = {
   1: "Badan Air",
@@ -95,9 +100,7 @@ async function loadData() {
     populateFilters();
     applyFilter();
 
-    if (poiLayer.getLayers().length > 0) {
-      map.fitBounds(poiLayer.getBounds());
-    }
+    // Tidak perlu fitBounds di sini, akan dilakukan di updateMap
   } catch (error) {
     console.error("Gagal memuat data GeoJSON atau POI:", error);
     document.getElementById("filter-status").innerHTML =
@@ -123,7 +126,6 @@ function populateFilters() {
     }
   });
 
-  // Fungsi pembantu untuk membuat checkbox
   const createCheckbox = (value, text, groupName, container) => {
     const div = document.createElement("div");
     div.classList.add("form-check");
@@ -145,21 +147,18 @@ function populateFilters() {
     container.appendChild(div);
   };
 
-  // 1. Populating Kabupaten Checkboxes
   containerKab.innerHTML = "";
   createCheckbox("ALL", "PILIH SEMUA", "kabupaten", containerKab);
   [...kabList].sort().forEach((kab) => {
     createCheckbox(kab, kab, "kabupaten", containerKab);
   });
 
-  // 2. Populating Komoditas Checkboxes
   containerKomoditas.innerHTML = "";
   createCheckbox("ALL", "PILIH SEMUA", "komoditas", containerKomoditas);
   [...komoditasList].sort().forEach((komoditas) => {
     createCheckbox(komoditas, komoditas, "komoditas", containerKomoditas);
   });
 
-  // Tambahkan event listener untuk fungsionalitas 'PILIH SEMUA'
   const setupSelectAll = (containerId, groupName) => {
     const allCheckbox = document.querySelector(
       `#${containerId} input[value='ALL']`
@@ -186,7 +185,6 @@ function applyFilter() {
     const checkboxes = Array.from(
       document.querySelectorAll(`#${containerId} input:checked`)
     );
-    // Jika 'ALL' dicentang atau tidak ada yang dicentang, kembalikan array kosong (semua)
     if (
       checkboxes.length === 0 ||
       checkboxes.find((cb) => cb.value === "ALL" && cb.checked)
@@ -274,6 +272,7 @@ function styleFeature(feature) {
   };
 }
 
+// 🎯 PERBAIKAN KRITIS 1: Memastikan Batas Kabupaten tidak menghalangi klik Desa
 function drawKabupatenBoundaries(selectedKabs) {
   if (!kabupatenData) return;
 
@@ -299,13 +298,14 @@ function drawKabupatenBoundaries(selectedKabs) {
         opacity: 1,
         color: "#000000",
         fillOpacity: 0.0,
-        // Properti ini mencegah klik pada poligon, membantu penembusan ke layer di bawah.
+        // Properti ini mencegah interaksi klik di Leaflet
         clickable: false,
       };
     },
     onEachFeature: function (feature, layer) {
       // 💡 SOLUSI KRITIS: Membuat elemen SVG/Path non-interaktif
       if (layer._path) {
+        // pointer-events: none memungkinkan klik "menembus" layer ini
         layer._path.style.pointerEvents = "none";
       }
 
@@ -430,7 +430,6 @@ function addLegend() {
     div.innerHTML += "<h4>Komoditas Unggulan Desa</h4>";
 
     grades.forEach((item) => {
-      // Pembungkus div.legend-item untuk perataan vertikal
       div.innerHTML += `
         <div class="legend-item">
           <i style="background:${item.color}"></i> <span>${item.label}</span>
@@ -456,13 +455,10 @@ function updateMap(filteredGeoJson, selectedKabs) {
     selectedFeature = null;
   }
 
-  // Hapus Layer POI Lama dan Gambar Ulang (Hanya POI di desa terfilter)
   updatePoiMarkers(filteredGeoJson);
 
-  // Gambar Ulang Batas Kabupaten (Layer ini tidak bisa diklik)
   drawKabupatenBoundaries(selectedKabs);
 
-  // Gambar Layer Desa Baru (Layer ini bisa diklik)
   filteredGeojsonLayer = L.geoJson(filteredGeoJson, {
     style: styleFeature,
     onEachFeature: onEachFeature,
@@ -472,7 +468,6 @@ function updateMap(filteredGeoJson, selectedKabs) {
     map.fitBounds(filteredGeojsonLayer.getBounds());
   }
 
-  // Update Layer Control
   if (layerControl) {
     map.removeControl(layerControl);
   }
@@ -483,11 +478,10 @@ function updateMap(filteredGeoJson, selectedKabs) {
   };
   layerControl = L.control.layers(null, overlayMaps).addTo(map);
 
-  // Tambahkan Legenda
   addLegend();
 }
 
-// FUNGSI PLOTTING POI YANG HANYA BERADA DI DESA YANG TERFILTER
+// 🎯 PERBAIKAN KRITIS 3: Memastikan Marker POI Muncul
 function updatePoiMarkers(filteredGeoJson) {
   poiLayer.clearLayers();
 
@@ -495,19 +489,22 @@ function updatePoiMarkers(filteredGeoJson) {
     return;
   }
 
-  // Buat daftar ID desa (WADMKD) yang saat ini terlihat di peta
+  // Asumsi: data_poi.json memiliki kolom 'WADMKD' yang cocok dengan data_desa
   const visibleDesaIDs = new Set(
     filteredGeoJson.features.map((f) => f.properties.WADMKD)
   );
 
   poiData.forEach((poi) => {
     // Kritis: Hanya tampilkan POI yang berada di desa yang terfilter
-    if (!visibleDesaIDs.has(poi.WADMKD)) {
+    // Perlu dicek apakah POI memiliki kolom WADMKD yang sesuai
+    if (poi.WADMKD && !visibleDesaIDs.has(poi.WADMKD)) {
       return;
     }
 
+    // Pastikan menggunakan nama kolom yang benar: 'longitude' dan 'latitude'
     const lat = parseFloat(poi.latitude);
     const lon = parseFloat(poi.longitude);
+    // Pastikan menggunakan nama kolom yang benar: 'name' dan 'category'
     const name = poi.name || poi.category || "POI";
 
     if (
@@ -520,7 +517,7 @@ function updatePoiMarkers(filteredGeoJson) {
     ) {
       L.circleMarker([lat, lon], {
         radius: 4,
-        fillColor: MARKER_COLOR_POI,
+        fillColor: MARKER_COLOR_POI, // Merah FireBrick
         color: "#000",
         weight: 1,
         opacity: 1,
@@ -541,6 +538,7 @@ function updatePoiMarkers(filteredGeoJson) {
 // --- 4. LOGIKA UPDATE KPI ---
 function updateKPI(filteredGeoJson) {
   const features = filteredGeoJson.features;
+
   const desaFeatures = features.filter((f) => f.properties.TIPADM == 1);
 
   let wilayahPoiPositive = 0;
@@ -557,13 +555,15 @@ function updateKPI(filteredGeoJson) {
 
   document.getElementById("kpi-desa").textContent =
     desaFeatures.length.toLocaleString("id-ID");
+
   document.getElementById("kpi-poi").textContent =
     wilayahPoiPositive.toLocaleString("id-ID");
+
   document.getElementById("kpi-komoditas").textContent =
     wilayahPoiZero.toLocaleString("id-ID");
 }
 
-// --- 5. LOGIKA UPDATE CHARTS ---
+// 🎯 PERBAIKAN KRITIS 2: Mengubah Chart menjadi Cluster Bar Chart
 function updateCharts(filteredGeoJson) {
   const features = filteredGeoJson.features;
 
@@ -589,14 +589,9 @@ function updateCharts(filteredGeoJson) {
   ].sort();
 
   const dataWithPOI = allKomoditas.map((k) => komoditasCount.withPOI[k] || 0);
-  const colorWithPOI = allKomoditas.map(
-    (k) => CUSTOM_COLOR_MAP[k.toUpperCase()] || CUSTOM_COLOR_MAP.LAINNYA
-  );
-
   const dataWithoutPOI = allKomoditas.map(
     (k) => komoditasCount.withoutPOI[k] || 0
   );
-  const colorWithoutPOI = allKomoditas.map((k) => COLOR_NO_POI);
 
   const traceWithPOI = {
     x: dataWithPOI,
@@ -605,7 +600,7 @@ function updateCharts(filteredGeoJson) {
     type: "bar",
     orientation: "h",
     marker: {
-      color: colorWithPOI,
+      color: CHART_COLOR_WITH_POI, // Steel Blue
     },
     hoverinfo: "x+y",
   };
@@ -617,7 +612,7 @@ function updateCharts(filteredGeoJson) {
     type: "bar",
     orientation: "h",
     marker: {
-      color: colorWithoutPOI,
+      color: CHART_COLOR_WITHOUT_POI, // Merah Calmer
     },
     hoverinfo: "x+y",
   };
@@ -629,7 +624,7 @@ function updateCharts(filteredGeoJson) {
         size: 14,
       },
     },
-    barmode: "stack",
+    barmode: "group", // 🎯 PERUBAHAN UTAMA: Cluster Bar Chart
     margin: {
       t: 40,
       l: 120,
