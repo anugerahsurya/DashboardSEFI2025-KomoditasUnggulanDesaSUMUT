@@ -216,6 +216,7 @@ function getStyle(feature) {
   };
 }
 
+// FUNGSI ON EACH FEATURE YANG DIMODIFIKASI UNTUK HOVER POPUP
 function onEachFeature(feature, layer) {
   const props = feature.properties;
   const popupContent = `
@@ -224,8 +225,45 @@ function onEachFeature(feature, layer) {
         <b>Komoditas:</b> ${props.Prediksi}<br>
         <b>Jumlah POI:</b> ${props.jumlah_poi}
     `;
-  layer.bindPopup(popupContent);
 
+  // TIDAK LANGSUNG bindPopup, kita gunakan on-hover
+
+  // Tambahkan event mouseover untuk menampilkan popup
+  layer.on("mouseover", function (e) {
+    // Tampilkan popup
+    layer.bindPopup(popupContent).openPopup();
+
+    // Beri highlight ringan saat hover
+    layer.setStyle({
+      weight: 2,
+      color: "#333",
+      fillOpacity: 0.9,
+    });
+    // Jika tidak ada desa yang sedang diklik, tampilkan detail tabel di bagian bawah (opsional, bisa sangat mengganggu)
+    // updateDetailTable(feature.properties);
+  });
+
+  // Tambahkan event mouseout untuk menutup popup dan mereset style
+  layer.on("mouseout", function (e) {
+    // Tutup popup
+    layer.closePopup();
+
+    // Reset style kecuali jika desa ini sedang dipilih (diklik)
+    if (
+      selectedFeature &&
+      selectedFeature.properties.WADMKD === feature.properties.WADMKD
+    ) {
+      layer.setStyle(getStyle(feature)); // Terapkan style 'selected'
+    } else {
+      layer.setStyle(getStyle(feature)); // Terapkan style default
+    }
+    // Jika tidak ada desa yang sedang diklik, reset detail tabel (opsional)
+    // if (!selectedFeature) {
+    //     updateDetailTable(null);
+    // }
+  });
+
+  // Pertahankan event click untuk memilih fitur dan mengisi detail tabel
   layer.on("click", function (e) {
     // Reset style fitur yang sebelumnya diklik
     if (selectedFeature && filteredGeojsonLayer) {
@@ -236,13 +274,13 @@ function onEachFeature(feature, layer) {
       });
     }
 
-    // Simpan dan beri style baru
+    // Simpan fitur yang baru diklik
     selectedFeature = feature;
-    layer.setStyle({
-      weight: 3,
-      color: "white",
-    });
 
+    // Beri style 'selected' (getStyle akan menangani ini)
+    layer.setStyle(getStyle(feature));
+
+    // Update detail tabel
     updateDetailTable(feature.properties);
   });
 }
@@ -254,6 +292,9 @@ function updateMap(filteredGeoJson) {
   }
   // Hapus layer POI lama
   poiLayer.clearLayers();
+
+  // Reset selected feature
+  selectedFeature = null;
 
   // Tambahkan layer GeoJSON baru
   if (filteredGeoJson.features.length > 0) {
@@ -309,7 +350,7 @@ function updateMap(filteredGeoJson) {
   }
 }
 
-// --- 4. LOGIKA UPDATE KPI (DIPERBARUI) ---
+// --- 4. LOGIKA UPDATE KPI ---
 function updateKPI(filteredGeoJson) {
   const totalDesa = filteredGeoJson.features.length;
   let desaPoiPositive = 0;
