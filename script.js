@@ -332,7 +332,7 @@ function highlightFeature(e) {
         <b>Kabupaten:</b> ${props.Kabupaten || "N/A"}<br>
         <b>Desa:</b> ${props.WADMKD || "N/A"}<br>
         <b>Komoditas:</b> ${props.Prediksi || "N/A"}<br>
-        <b>POI:</b> ${props.jumlah_poi || 0}
+        <b>Jumlah POI:</b> ${props.jumlah_poi || 0}
     `;
   layer.bindTooltip(popupContent).openTooltip();
 }
