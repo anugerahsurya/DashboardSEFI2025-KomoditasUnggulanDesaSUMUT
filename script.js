@@ -222,9 +222,9 @@ function getColor(d) {
 function styleFeature(feature) {
   return {
     fillColor: getColor(feature.properties.Prediksi),
-    weight: 1.5,
+    weight: 1,
     opacity: 1,
-    color: "black", // Border Hitam Solid (Batas Desa)
+    color: "white", // Border Hitam Solid (Batas Desa)
     dashArray: "",
     fillOpacity: 1.0, // 🎯 PERUBAHAN: Opacity Penuh (1.0) untuk fill desa
   };
@@ -251,7 +251,6 @@ function drawKabupatenBoundaries(selectedKabs) {
   };
 
   kabupatenBoundaryLayer = L.geoJson(filteredKabData, {
-    // 🎯 PENYESUAIAN 1: Menonaktifkan klik pada batas kabupaten
     style: function (feature) {
       return {
         fillColor: "transparent",
@@ -259,13 +258,23 @@ function drawKabupatenBoundaries(selectedKabs) {
         opacity: 1,
         color: "#000000", // Batas Hitam Solid
         fillOpacity: 0.0,
-        clickable: false, // 🎯 KUNCI: Poligon ini tidak bisa diklik/diinteraksi
+        clickable: false, // Poligon ini tidak bisa diklik/diinteraksi
       };
     },
     onEachFeature: function (feature, layer) {
+      // 1. Solusi Leaflet Modern (tambahan)
+      layer.setStyle({ interactive: false });
+
+      // 2. SOLUSI KUNCI: Gunakan CSS pointer-events: none.
+      // Ini memastikan elemen SVG Path (batas) 'tembus pandang' terhadap klik mouse,
+      // sehingga event klik diteruskan ke layer di bawahnya (layer desa).
+      if (layer._path) {
+        layer._path.style.pointerEvents = "none";
+      }
+
       const kabName = feature.properties.Kabupaten || "Kabupaten/Kota";
 
-      // 🎯 PENYESUAIAN 2: Menggunakan Permanent Tooltip untuk label
+      // Menggunakan Permanent Tooltip untuk label
       layer
         .bindTooltip(
           `<b style="text-shadow: 1px 1px #ffffff;">${kabName}</b>`, // Label nama dengan outline putih

@@ -68,3 +68,22 @@ aside {
   text-overflow: ellipsis; /* Tambahkan elipsis jika disembunyikan */
   max-width: 90%; /* Batasi lebar label agar tidak keluar dari container */
 }
+
+/* Styling untuk menghilangkan kotak (box) pada label Kabupaten/Kota */
+.kab-label-tooltip {
+  /* Menghilangkan latar belakang putih dan border bawaan Leaflet */
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0; /* Pastikan tidak ada padding tambahan */
+}
+
+/* Styling untuk teks label agar mudah dibaca */
+.kab-label-tooltip .leaflet-tooltip-content {
+  /* Pastikan teks berada di atas poligon */
+  color: #000000;
+  font-weight: bold;
+  font-size: 14px;
+  text-shadow: 1px 1px #ffffff, -1px -1px #ffffff, 1px -1px #ffffff,
+    -1px 1px #ffffff; /* Outline putih agar kontras */
+}
