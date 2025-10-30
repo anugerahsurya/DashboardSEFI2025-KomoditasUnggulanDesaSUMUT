@@ -50,17 +50,8 @@ const COLUMN_MAP = {
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
-// Ikon Marker Kustom untuk POI (menggunakan Leaflet standar)
-const poiIcon = L.icon({
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  shadowSize: [41, 41],
-});
+// ❌ Hapus ikon kustom yang berat
+// const poiIcon = L.icon({...});
 
 // --- INISIALISASI APLIKASI ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -286,18 +277,15 @@ function onEachFeature(feature, layer) {
 }
 
 function updateMap(filteredGeoJson) {
-  // Hapus layer GeoJSON lama
   if (filteredGeojsonLayer) {
     map.removeLayer(filteredGeojsonLayer);
     selectedFeature = null;
   }
 
-  // Hapus Layer Control lama (jika ada)
   if (layerControl) {
     map.removeControl(layerControl);
   }
 
-  // Tambahkan layer GeoJSON yang baru difilter
   filteredGeojsonLayer = L.geoJson(filteredGeoJson, {
     style: styleFeature,
     onEachFeature: onEachFeature,
@@ -309,27 +297,24 @@ function updateMap(filteredGeoJson) {
 
   updatePoiMarkers();
 
-  // Tambahkan Layer Control
   const overlayMaps = {
-    // POI di atas GeoJSON secara default (diurutkan di sini)
     "Titik POI": poiLayer,
     "Pemetaan Desa": filteredGeojsonLayer,
   };
 
+  // Base layer sudah ditambahkan di DOMContentLoaded, jadi biarkan layer control hanya mengelola overlay
   layerControl = L.control.layers(null, overlayMaps).addTo(map);
 }
 
-// FUNGSI PLOTTING SEMUA POI
+// 🎯 FUNGSI PLOTTING SEMUA POI (Kembali ke Circle Marker Merah yang Ringan) 🎯
 function updatePoiMarkers() {
   poiLayer.clearLayers();
 
   poiData.forEach((poi) => {
-    // Menggunakan atribut yang dikoreksi: longitude dan latitude
     const lat = parseFloat(poi.latitude);
     const lon = parseFloat(poi.longitude);
     const name = poi.name || poi.category || "POI";
 
-    // Hanya plot jika koordinat valid
     if (
       !isNaN(lat) &&
       !isNaN(lon) &&
@@ -338,8 +323,14 @@ function updatePoiMarkers() {
       lon >= -180 &&
       lon <= 180
     ) {
-      L.marker([lat, lon], {
-        icon: poiIcon, // Menggunakan ikon Leaflet standar
+      // Menggunakan L.circleMarker kembali
+      L.circleMarker([lat, lon], {
+        radius: 4,
+        fillColor: MARKER_COLOR_POI,
+        color: "#000",
+        weight: 1, // Sedikit lebih tebal dari sebelumnya agar mudah di-hover
+        opacity: 1,
+        fillOpacity: 0.8,
       })
         // Keterangan saat di-hover/klik
         .bindPopup(
@@ -358,13 +349,11 @@ function updatePoiMarkers() {
 function updateKPI(filteredGeoJson) {
   const features = filteredGeoJson.features;
 
-  // TIPADM = 1 hanya untuk kpi-desa
   const desaFeatures = features.filter((f) => f.properties.TIPADM == 1);
 
   let wilayahPoiPositive = 0;
   let wilayahPoiZero = 0;
 
-  // Perhitungan POI menggunakan SEMUA fitur
   features.forEach((f) => {
     const jumlahPoi = f.properties.jumlah_poi || 0;
     if (jumlahPoi > 0) {
@@ -374,15 +363,12 @@ function updateKPI(filteredGeoJson) {
     }
   });
 
-  // KPI 1: Total Desa (Hanya TIPADM=1)
   document.getElementById("kpi-desa").textContent =
     desaFeatures.length.toLocaleString("id-ID");
 
-  // KPI 2: Wilayah dengan POI > 0 (SEMUA fitur)
   document.getElementById("kpi-poi").textContent =
     wilayahPoiPositive.toLocaleString("id-ID");
 
-  // KPI 3: Wilayah dengan POI = 0 (SEMUA fitur)
   document.getElementById("kpi-komoditas").textContent =
     wilayahPoiZero.toLocaleString("id-ID");
 }
@@ -391,7 +377,6 @@ function updateKPI(filteredGeoJson) {
 function updateCharts(filteredGeoJson) {
   const features = filteredGeoJson.features;
 
-  // CHART 1: Distribusi Komoditas
   const komoditasCount = features.reduce((acc, f) => {
     const komoditas = f.properties.Prediksi || "LAINNYA";
     acc[komoditas] = (acc[komoditas] || 0) + 1;
@@ -406,6 +391,7 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
+    title: { text: "Distribusi Komoditas", font: { size: 14 } },
     margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Jumlah Wilayah" },
@@ -431,7 +417,6 @@ function updateCharts(filteredGeoJson) {
     { displayModeBar: false }
   );
 
-  // CHART 2: Top 10 Berdasarkan Jumlah POI
   const poiDataDesa = features
     .map((f) => ({
       label: f.properties.WADMKD || f.properties.Kabupaten || "Wilayah",
@@ -443,6 +428,10 @@ function updateCharts(filteredGeoJson) {
     .reverse();
 
   const layoutPoi = {
+    title: {
+      text: "Top 10 Wilayah Berdasarkan POI Keuangan",
+      font: { size: 14 },
+    },
     margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Total POI" },
