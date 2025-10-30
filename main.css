@@ -104,14 +104,28 @@ aside {
 .legend i {
   width: 18px;
   height: 18px;
-  float: left;
+  /* Hapus float: left; untuk perataan vertikal */
+  /* float: left; */
+  display: inline-block; /* Pastikan tetap bisa mengatur lebar/tinggi */
+  vertical-align: middle; /* Sejajarkan ikon dengan teks */
   margin-right: 8px;
   opacity: 0.8;
   border-radius: 3px;
   border: 1px solid #ccc; /* Penting untuk warna putih */
 }
 
-/* Label kabupaten/kota (hilangkan box bawaan tooltip) */
+/* Gaya untuk setiap item legenda (teks & ikon) agar menjadi baris terpisah */
+.legend .legend-item {
+  display: flex; /* Gunakan flexbox untuk perataan horizontal ikon dan teks */
+  align-items: center; /* Sejajarkan item secara vertikal di tengah */
+  margin-bottom: 5px; /* Tambah sedikit ruang antar item */
+}
+/* Pastikan teks label legenda juga memiliki gaya yang konsisten */
+.legend .legend-item span {
+  vertical-align: middle;
+}
+
+/* === Ini adalah gaya yang sudah ada, biarkan saja === */
 .kab-label-tooltip {
   background: transparent !important;
   border: none !important;
@@ -119,7 +133,6 @@ aside {
   padding: 0;
 }
 
-/* Teks label kabupaten/kota */
 .kab-label-tooltip .leaflet-tooltip-content {
   font-family: "Poppins", sans-serif;
   font-size: 3em;

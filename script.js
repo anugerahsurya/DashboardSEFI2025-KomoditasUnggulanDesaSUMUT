@@ -454,13 +454,20 @@ function addLegend() {
     div.innerHTML += "<h4>Komoditas Unggulan Desa</h4>";
 
     grades.forEach((item) => {
-      div.innerHTML +=
-        '<i style="background:' + item.color + '"></i> ' + item.label + "<br>";
+      // 🎯 PERUBAHAN DI SINI: Tambahkan div dengan class 'legend-item'
+      div.innerHTML += `
+        <div class="legend-item">
+          <i style="background:${item.color}"></i> <span>${item.label}</span>
+        </div>
+      `;
     });
 
-    div.innerHTML +=
-      '<i style="background:#FFFFFF; border: 1px solid #000;"></i> ' +
-      otherLabel;
+    // Tambahkan item untuk Wilayah Perkotaan (Putih)
+    div.innerHTML += `
+      <div class="legend-item">
+        <i style="background:#FFFFFF; border: 1px solid #000;"></i> <span>${otherLabel}</span>
+      </div>
+    `;
 
     return div;
   };
