@@ -236,7 +236,7 @@ function styleFeature(feature) {
     fillColor: getColor(feature.properties.Prediksi),
     weight: 0.5,
     opacity: 1,
-    color: "white", // Border Putih (Batas Desa)
+    color: "black", // Border Putih (Batas Desa)
     dashArray: "",
     fillOpacity: 1.0, // Opacity Penuh (1.0) untuk fill desa
   };
