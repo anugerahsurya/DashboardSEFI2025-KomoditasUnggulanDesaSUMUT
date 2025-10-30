@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadData();
   document
     .getElementById("apply-filter-btn")
-    .addEventListener("click", applyFilter); // Listener untuk Tombol Reset
+    .addEventListener("click", applyFilter); // Tambahkan listener untuk Tombol Reset
   document
     .getElementById("reset-filter-btn")
     .addEventListener("click", resetFilter);
@@ -104,12 +104,12 @@ async function loadData() {
   }
 }
 
-// --- 2. LOGIKA FILTER (Pengganti Pandas/GeoPandas Filter) ---
+// --- 2. LOGIKA FILTER (Menggunakan Select Multiple) ---
 
-// Fungsi yang diubah untuk mengisi kedua filter dengan checkbox
+// Fungsi yang dikembalikan untuk mengisi kedua select
 function populateFilters() {
-  const containerKab = document.getElementById("kabupaten-filter-list");
-  const containerKomoditas = document.getElementById("komoditas-filter-list");
+  const selectKab = document.getElementById("kabupaten-select");
+  const selectKomoditas = document.getElementById("komoditas-select");
 
   const kabList = new Set();
   const komoditasList = new Set();
@@ -119,44 +119,36 @@ function populateFilters() {
     if (f.properties.Prediksi) {
       komoditasList.add(f.properties.Prediksi);
     }
-  }); // Populate Kabupaten Checkbox
+  }); // Populate Kabupaten Select
 
-  containerKab.innerHTML = "";
+  selectKab.innerHTML = "";
   [...kabList].sort().forEach((kab) => {
-    const id = `kab-${kab.replace(/\s/g, "")}`;
-    containerKab.innerHTML += `
-      <div class="form-check">
-        <input class="form-check-input kabupaten-checkbox" type="checkbox" value="${kab}" id="${id}">
-        <label class="form-check-label" for="${id}">
-          ${kab}
-        </label>
-      </div>
-    `;
-  }); // Populate Komoditas Checkbox
+    const option = document.createElement("option");
+    option.value = kab;
+    option.textContent = kab;
+    selectKab.appendChild(option);
+  }); // Populate Komoditas Select
 
-  containerKomoditas.innerHTML = "";
+  selectKomoditas.innerHTML = "";
   [...komoditasList].sort().forEach((komoditas) => {
-    const id = `kom-${komoditas.replace(/\s/g, "")}`;
-    containerKomoditas.innerHTML += `
-      <div class="form-check">
-        <input class="form-check-input komoditas-checkbox" type="checkbox" value="${komoditas}" id="${id}">
-        <label class="form-check-label" for="${id}">
-          ${komoditas}
-        </label>
-      </div>
-    `;
+    const option = document.createElement("option");
+    option.value = komoditas;
+    option.textContent = komoditas;
+    selectKomoditas.appendChild(option);
   });
 }
 
-// Fungsi yang diubah untuk membaca nilai dari checkbox
+// Fungsi yang dikembalikan untuk membaca nilai dari select multiple
 function applyFilter() {
-  const selectedKabupaten = Array.from(
-    document.querySelectorAll(".kabupaten-checkbox:checked")
-  ).map((checkbox) => checkbox.value);
+  const selectKabupaten = document.getElementById("kabupaten-select");
+  const selectedKabupaten = Array.from(selectKabupaten.selectedOptions).map(
+    (option) => option.value
+  );
 
-  const selectedKomoditas = Array.from(
-    document.querySelectorAll(".komoditas-checkbox:checked")
-  ).map((checkbox) => checkbox.value);
+  const selectKomoditas = document.getElementById("komoditas-select");
+  const selectedKomoditas = Array.from(selectKomoditas.selectedOptions).map(
+    (option) => option.value
+  );
 
   let filteredFeatures = geojsonData.features; // Filter Kabupaten
 
@@ -197,14 +189,19 @@ function applyFilter() {
   updateDetailTable(null); // Reset detail
 }
 
-// Fungsi baru untuk mereset filter
+// Fungsi untuk mereset filter
 function resetFilter() {
-  // Uncheck semua checkbox
-  document
-    .querySelectorAll(".kabupaten-checkbox, .komoditas-checkbox")
-    .forEach((checkbox) => {
-      checkbox.checked = false;
-    }); // Terapkan filter kembali (akan menampilkan semua data)
+  // Deselect semua opsi di Select Kabupaten
+  Array.from(document.getElementById("kabupaten-select").options).forEach(
+    (option) => {
+      option.selected = false;
+    }
+  ); // Deselect semua opsi di Select Komoditas
+  Array.from(document.getElementById("komoditas-select").options).forEach(
+    (option) => {
+      option.selected = false;
+    }
+  ); // Terapkan filter kembali (akan menampilkan semua data)
 
   applyFilter();
 }
@@ -390,6 +387,7 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
+    title: "Distribusi Desa per Komoditas Unggulan",
     margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Jumlah Desa" },
@@ -412,11 +410,11 @@ function updateCharts(filteredGeoJson) {
       },
     ],
     layoutKomoditas
-  ); // ----------------------------------------------------------------- // CHART 2: TOP 10 DESA BERDASARKAN JUMLAH POI (DISESUAIKAN) // -----------------------------------------------------------------
+  ); // ----------------------------------------------------------------- // CHART 2: TOP 10 DESA BERDASARKAN JUMLAH POI (TETAP) // -----------------------------------------------------------------
 
   const poiDataDesa = features
     .map((f) => ({
-      // MODIFIKASI: HANYA MENGGUNAKAN NAMA DESA
+      // HANYA MENGGUNAKAN NAMA DESA
       label: f.properties.WADMKD,
       jumlah: f.properties.jumlah_poi || 0,
     }))
@@ -426,6 +424,7 @@ function updateCharts(filteredGeoJson) {
     .reverse(); // Balikkan urutan untuk Plotly (tertinggi di atas)
 
   const layoutPoi = {
+    title: "Top 10 Desa dengan POI Fasilitas Keuangan Terbanyak",
     margin: { t: 40, l: 120, r: 10, b: 40 }, // Margin disesuaikan
     height: 350,
     xaxis: { title: "Total POI" },
@@ -441,7 +440,7 @@ function updateCharts(filteredGeoJson) {
         type: "bar",
         orientation: "h",
         marker: {
-          color: "steelblue", // MODIFIKASI: Menggunakan warna tunggal 'steelblue'
+          color: "steelblue", // Warna tunggal 'steelblue'
         },
       },
     ],
