@@ -295,12 +295,14 @@ function drawKabupatenBoundaries(selectedKabs) {
         opacity: 1,
         color: "#000000",
         fillOpacity: 0.0,
-        // Kritis: Layer Leaflet dasar sudah disetel non-clickable
         clickable: false,
       };
     },
     onEachFeature: function (feature, layer) {
-      // 💡 SOLUSI KRITIS: Mengatur CSS pointer-events: none pada elemen SVG
+      // 1. Tambahan Solusi Leaflet Modern
+      layer.setStyle({ interactive: false });
+
+      // 2. SOLUSI KUNCI: Gunakan CSS pointer-events: none.
       if (layer._path) {
         layer._path.style.pointerEvents = "none";
       }
@@ -321,7 +323,8 @@ function drawKabupatenBoundaries(selectedKabs) {
     },
   }).addTo(map);
 
-  // Layer kabupaten/kota harus berada di atas desa agar terlihat
+  // Layer kabupaten/kota hanya dipanggil bringToFront saat pertama kali digambar di updateMap
+  // atau hanya di sini (drawKabupatenBoundaries)
   kabupatenBoundaryLayer.bringToFront();
 }
 
@@ -340,13 +343,18 @@ function highlightFeature(e) {
       dashArray: "",
       fillOpacity: 0.9,
     });
+
+    // Kritis: Pindahkan layer desa yang di-hover ke depan
     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
       layer.bringToFront();
     }
   }
-  // Pastikan batas kabupaten dan POI tetap di depan desa yang di-hover
+
+  // 💡 JAGA STROKE: Panggil bringToFront Layer Kabupaten agar stroke terlihat di atas fill desa yang di-hover.
   if (kabupatenBoundaryLayer) kabupatenBoundaryLayer.bringToFront();
-  if (poiLayer) poiLayer.bringToFront(); // POI harus selalu di atas semua
+
+  // POI harus selalu di atas semua (termasuk desa yang di-hover)
+  if (poiLayer) poiLayer.bringToFront();
 
   const popupContent = `
         <b>Kabupaten:</b> ${props.Kabupaten || "N/A"}<br>
@@ -399,7 +407,14 @@ function zoomToFeature(e) {
   updateDetailTable(layer.feature.properties);
 
   map.fitBounds(layer.getBounds());
-  // Pastikan POI berada di depan fitur yang baru diklik
+
+  // Kritis: Layer desa yang dipilih harus di depan layer kabupaten
+  if (filteredGeojsonLayer) layer.bringToFront();
+
+  // 💡 JAGA STROKE: Panggil bringToFront untuk Layer Kabupaten
+  if (kabupatenBoundaryLayer) kabupatenBoundaryLayer.bringToFront();
+
+  // POI harus di depan semua
   if (poiLayer) poiLayer.bringToFront();
 }
 
@@ -456,14 +471,20 @@ function updateMap(filteredGeoJson, selectedKabs) {
     selectedFeature = null;
   }
 
+  // 1. Gambar/Update POI Marker
   updatePoiMarkers(filteredGeoJson);
 
+  // 2. Gambar Batas Kabupaten (pointer-events: none)
   drawKabupatenBoundaries(selectedKabs);
 
+  // 3. Gambar Layer Desa
   filteredGeojsonLayer = L.geoJson(filteredGeoJson, {
     style: styleFeature,
     onEachFeature: onEachFeature,
   }).addTo(map);
+
+  // 4. Pastikan Layer Desa di Depan Layer Kabupaten (INTERAKSI)
+  filteredGeojsonLayer.bringToFront();
 
   if (filteredGeojsonLayer.getLayers().length > 0) {
     map.fitBounds(filteredGeojsonLayer.getBounds());
@@ -481,7 +502,7 @@ function updateMap(filteredGeoJson, selectedKabs) {
 
   addLegend();
 
-  // 🎯 PERBAIKAN KRITIS 1: Memastikan POI layer selalu di depan layer poligon lainnya
+  // 5. POI harus di depan semua (final bringToFront)
   if (poiLayer) poiLayer.bringToFront();
 }
 
