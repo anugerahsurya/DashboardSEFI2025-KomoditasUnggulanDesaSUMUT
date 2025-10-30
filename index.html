@@ -84,32 +84,28 @@
           </h5>
           <div class="filter-section mb-4 p-3 bg-white rounded shadow-sm">
             <label
-              for="kabupaten-select"
+              for="kabupaten-filter-container"
               class="form-label fw-bold mb-2 text-dark"
               >Pilih Kabupaten/Kota</label
             >
-            <select
-              id="kabupaten-select"
-              class="form-select mb-3"
-              multiple
-              size="10"
-            ></select>
-
+            <div
+              id="kabupaten-filter-container"
+              class="checkbox-scroll mb-3"
+              style="max-height: 250px"
+            >
+              <small class="text-muted">Memuat daftar...</small>
+            </div>
             <label
-              for="komoditas-select"
+              for="komoditas-filter-container"
               class="form-label fw-bold mb-2 text-dark"
               >Pilih Komoditas Unggulan</label
             >
-            <select
-              id="komoditas-select"
-              class="form-select mb-3"
-              multiple
-              size="5"
-            ></select>
+            <div id="komoditas-filter-container" class="checkbox-scroll mb-3">
+              <small class="text-muted">Memuat daftar...</small>
+            </div>
             <button
               id="apply-filter-btn"
-              class="btn w-100 mb-2 fw-bold"
-              style="background-color: #c70039; color: white"
+              class="btn **btn-w-100** w-100 mb-2 fw-bold"
             >
               Terapkan Filter
             </button>
