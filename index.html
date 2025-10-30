@@ -10,6 +10,13 @@
       rel="stylesheet"
     />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -27,12 +34,7 @@
     >
       <div class="container-fluid">
         <a class="navbar-brand d-flex align-items-center" href="#">
-          <img
-            src="Folder Logo/logoOJK.png"
-            alt="OJK Logo"
-            height="50"
-            class="me-2"
-          />
+          <img src="Logo/logoOJK.png" alt="OJK Logo" height="50" class="me-2" />
           <div class="d-flex flex-column lh-sm">
             <span class="fw-bold text-dark fs-6">Otoritas Jasa Keuangan</span>
             <small class="text-secondary" style="font-size: 0.8rem"
@@ -60,7 +62,7 @@
           <ul class="navbar-nav">
             <li class="nav-item">
               <a
-                class="nav-link text-primary fw-bold"
+                class="nav-link text-danger fw-bold"
                 href="#"
                 style="border-bottom: 3px solid #fd0d0d8f"
                 >Dashboard</a
@@ -98,22 +100,30 @@
 
     <div class="container-fluid pt-5 mt-5">
       <div class="row">
-        <aside class="col-lg-3 col-md-12 p-3 bg-light border-end">
-          <h3 class="mb-3 text-dark">Pengaturan Filter</h3>
-          <div class="filter-section mb-4">
-            <label for="kabupaten-select" class="form-label fw-bold"
+        <aside class="col-lg-3 col-md-12 p-4 bg-light shadow-sm">
+          <h5 class="mb-4 text-dark d-flex align-items-center">
+            <span class="text-danger me-2 fs-4">⚙️</span>
+            <span class="fw-bold">Pengaturan Filter</span>
+          </h5>
+          <div class="filter-section mb-4 p-3 bg-white rounded shadow-sm">
+            <label
+              for="kabupaten-select"
+              class="form-label fw-bold mb-2 text-dark"
               >Pilih Kabupaten/Kota</label
             >
             <select
               id="kabupaten-select"
-              class="form-select mb-2"
+              class="form-select mb-3"
               multiple
               size="10"
             ></select>
-            <button id="apply-filter-btn" class="btn btn-primary w-100">
+            <button id="apply-filter-btn" class="btn btn-danger w-100 fw-bold">
               Terapkan Filter
             </button>
-            <small id="filter-status" class="form-text mt-2"></small>
+            <small
+              id="filter-status"
+              class="form-text mt-2 d-block text-center"
+            ></small>
           </div>
         </aside>
 

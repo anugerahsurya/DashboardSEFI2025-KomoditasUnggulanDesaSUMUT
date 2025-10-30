@@ -1,14 +1,36 @@
-/* Pastikan peta memiliki z-index yang baik */
-#map {
-  z-index: 1;
-}
+/* main.css */
 
-/* Kustomisasi Sidebar */
-.bg-light {
-  background-color: #f8f9fa !important; /* Warna Bootstrap */
-}
-
-/* Jarak vertikal agar konten tidak tertutup fixed navbar */
+/* Terapkan Font Poppins secara global */
 body {
-  padding-top: 56px;
+  font-family: "Poppins", sans-serif;
+  background-color: #f8f9fa; /* Latar belakang abu-abu muda */
+}
+
+/* Kustomisasi Sidebar Filter */
+aside {
+  /* Meningkatkan padding agar tidak terlalu mepet */
+  padding-top: 2rem !important;
+  padding-bottom: 2rem !important;
+}
+
+/* Kustomisasi Box Filter agar terlihat simpel dan modern */
+.filter-section {
+  border: none !important;
+  border-radius: 1rem !important; /* Sudut lebih melengkung */
+}
+
+/* Tombol filter diubah ke warna danger agar serasi dengan branding OJK (merah) */
+.btn-danger {
+  background-color: #fd0d0d8f;
+  border-color: #fd0d0d8f;
+}
+
+.btn-danger:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+/* Select filter disesuaikan agar terlihat lebih rapi */
+#kabupaten-select {
+  border-radius: 0.5rem;
 }
