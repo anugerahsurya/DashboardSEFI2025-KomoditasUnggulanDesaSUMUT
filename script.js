@@ -346,27 +346,32 @@ function updateMap(filteredGeoJson) {
   }
 }
 
-// --- 4. LOGIKA UPDATE KPI ---
+// --- 4. LOGIKA UPDATE KPI (Dimodifikasi) ---
 function updateKPI(filteredGeoJson) {
-  const totalDesa = filteredGeoJson.features.length;
+  // Hitung hanya fitur dengan TIPADM = 1
+  const activeFeatures = filteredGeoJson.features.filter(
+    (f) => f.properties.TIPADM == 1 // Memastikan hanya fitur desa (TIPADM=1) yang dihitung
+  );
+
+  const totalDesaAktif = activeFeatures.length;
   let desaPoiPositive = 0;
   let desaPoiZero = 0;
 
-  filteredGeoJson.features.forEach((f) => {
+  activeFeatures.forEach((f) => {
     const jumlahPoi = f.properties.jumlah_poi || 0;
     if (jumlahPoi > 0) {
       desaPoiPositive += 1;
     } else {
       desaPoiZero += 1;
     }
-  });
+  }); // KPI 1: Total Desa Aktif (TIPADM=1)
 
   document.getElementById("kpi-desa").textContent =
-    totalDesa.toLocaleString("id-ID");
+    totalDesaAktif.toLocaleString("id-ID"); // KPI 2: Desa dengan POI > 0
   document.getElementById("kpi-poi").textContent =
-    desaPoiPositive.toLocaleString("id-ID"); // Desa dengan POI > 0
+    desaPoiPositive.toLocaleString("id-ID"); // KPI 3: Desa dengan POI = 0 // Note: Dalam konteks komoditas/potensi, ini mungkin diartikan sebagai 'Desa tanpa fasilitas'
   document.getElementById("kpi-komoditas").textContent =
-    desaPoiZero.toLocaleString("id-ID"); // Desa dengan POI = 0
+    desaPoiZero.toLocaleString("id-ID");
 }
 
 // --- 5. LOGIKA UPDATE CHARTS (Menggunakan Plotly.js) ---
