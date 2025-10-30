@@ -225,7 +225,7 @@ function styleFeature(feature) {
     fillColor: getColor(feature.properties.Prediksi),
     weight: 1.5, // ⬅️ Batas tetap tipis
     opacity: 1, // Opacity garis batas
-    color: "black", // Border Hitam Solid (Batas Desa)
+    color: "white", // Border Hitam Solid (Batas Desa)
     dashArray: "",
     fillOpacity: 1.0, // 🎯 DIUBAH: Fill Opacity Penuh (100%)
   };
