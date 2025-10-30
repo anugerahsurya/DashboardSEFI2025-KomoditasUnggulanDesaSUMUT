@@ -638,12 +638,6 @@ function updateCharts(filteredGeoJson) {
   };
 
   const layoutKomoditas = {
-    title: {
-      text: "Distribusi Komoditas Berdasarkan POI Keuangan",
-      font: {
-        size: 14,
-      },
-    },
     barmode: "group",
     margin: {
       t: 40,
@@ -687,12 +681,6 @@ function updateCharts(filteredGeoJson) {
     .reverse();
 
   const layoutPoi = {
-    title: {
-      text: "Top 10 Wilayah Berdasarkan POI Keuangan",
-      font: {
-        size: 14,
-      },
-    },
     margin: {
       t: 40,
       l: 120,
