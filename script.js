@@ -367,7 +367,7 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
-    margin: { t: 40, l: 100, r: 10, b: 20 },
+    margin: { t: 40, l: 120, r: 10, b: 40 },
     height: 350,
     xaxis: { title: "Jumlah Desa" },
     yaxis: { automargin: true },
