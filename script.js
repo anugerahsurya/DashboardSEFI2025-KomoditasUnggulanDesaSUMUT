@@ -613,27 +613,41 @@ function updateCharts(filteredGeoJson) {
     (k) => komoditasCount.withoutPOI[k] || 0
   );
 
+  // 🔥 PERUBAHAN: Menyiapkan teks label untuk ditampilkan di luar bar
+  const textWithPOI = dataWithPOI.map((d) =>
+    d > 0 ? d.toLocaleString("id-ID") : ""
+  );
+  const textWithoutPOI = dataWithoutPOI.map((d) =>
+    d > 0 ? d.toLocaleString("id-ID") : ""
+  );
+
   const traceWithPOI = {
     x: dataWithPOI,
     y: allKomoditas,
-    name: "Dengan POI Keuangan",
+    name: "Dengan POI Fasilitas Keuangan",
     type: "bar",
     orientation: "h",
     marker: {
       color: CHART_COLOR_WITH_POI,
     },
+    // 🔥 PERUBAHAN: Menampilkan label teks dan posisinya di luar bar
+    text: textWithPOI,
+    textposition: "outside",
     hoverinfo: "x+y",
   };
 
   const traceWithoutPOI = {
     x: dataWithoutPOI,
     y: allKomoditas,
-    name: "Tanpa POI Keuangan",
+    name: "Tanpa POI Fasilitas Keuangan",
     type: "bar",
     orientation: "h",
     marker: {
       color: CHART_COLOR_WITHOUT_POI,
     },
+    // 🔥 PERUBAHAN: Menampilkan label teks dan posisinya di luar bar
+    text: textWithoutPOI,
+    textposition: "outside",
     hoverinfo: "x+y",
   };
 
@@ -642,21 +656,28 @@ function updateCharts(filteredGeoJson) {
     margin: {
       t: 40,
       l: 120,
-      r: 10,
-      b: 40,
+      r: 60,
+      b: 100, // 🔥 PERUBAHAN: Ditingkatkan untuk memberi ruang legenda di bawah
     },
     height: 350,
+    // 🔥 PERUBAHAN: Sumbu X dibuat tidak terlihat/off
     xaxis: {
-      title: "Jumlah Wilayah",
+      visible: false, // Menyembunyikan sumbu X
+      showgrid: false,
+      showline: false,
+      zeroline: false,
+      showticklabels: false,
     },
     yaxis: {
       automargin: true,
     },
     legend: {
-      x: 1,
-      y: 0,
-      xanchor: "right",
-      yanchor: "bottom",
+      // 🔥 PERUBAHAN: Posisikan legenda secara horizontal di bawah chart
+      orientation: "h", // Orientasi horizontal
+      x: 0.5, // Posisi horizontal di tengah (0.5)
+      y: -0.2, // Posisi vertikal di bawah area plot (gunakan nilai negatif)
+      xanchor: "center", // Titik jangkar horizontal di tengah legenda
+      yanchor: "top", // Titik jangkar vertikal di bagian atas legenda
     },
   };
 
