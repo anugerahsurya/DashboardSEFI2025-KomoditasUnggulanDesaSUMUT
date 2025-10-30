@@ -226,7 +226,7 @@ function styleFeature(feature) {
       fillColor: "#FFFFFF", // Warna Putih
       weight: 0.5,
       opacity: 1,
-      color: "white",
+      color: "black",
       dashArray: "",
       fillOpacity: 1.0,
     };
