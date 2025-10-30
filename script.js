@@ -223,11 +223,11 @@ function getColor(d) {
 function styleFeature(feature) {
   return {
     fillColor: getColor(feature.properties.Prediksi),
-    weight: 1.5,
-    opacity: 1,
+    weight: 1.5, // ⬅️ Batas tetap tipis
+    opacity: 1, // Opacity garis batas
     color: "black", // Border Hitam Solid (Batas Desa)
     dashArray: "",
-    fillOpacity: 0.25, // ⬅️ DIUBAH: Transparansi 25% untuk desa
+    fillOpacity: 1.0, // 🎯 DIUBAH: Fill Opacity Penuh (100%)
   };
 }
 
