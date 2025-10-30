@@ -396,16 +396,21 @@ function updateMap(filteredGeoJson, selectedKabs) {
   if (filteredGeojsonLayer) {
     map.removeLayer(filteredGeojsonLayer);
     selectedFeature = null;
-  }
+  } // Hapus layer kabupaten sebelum digambar ulang
 
-  // Hapus layer kabupaten sebelum digambar ulang
   if (kabupatenBoundaryLayer) {
     map.removeLayer(kabupatenBoundaryLayer);
   }
 
   if (layerControl) {
     map.removeControl(layerControl);
-  }
+  } // Menghapus legenda lama jika ada (Ini penting)
+
+  map.eachLayer((layer) => {
+    if (layer._container && layer._container.classList.contains("legend")) {
+      map.removeControl(layer);
+    }
+  });
 
   filteredGeojsonLayer = L.geoJson(filteredGeoJson, {
     style: styleFeature,
@@ -416,21 +421,51 @@ function updateMap(filteredGeoJson, selectedKabs) {
     map.fitBounds(filteredGeojsonLayer.getBounds());
   }
 
-  updatePoiMarkers();
+  updatePoiMarkers(); // Panggil fungsi untuk menggambar batas kabupaten dari data baru dan terfilter // Batas ini sekarang tidak bisa diklik, hanya tampil visual dan label
 
-  // Panggil fungsi untuk menggambar batas kabupaten dari data baru dan terfilter
-  // Batas ini sekarang tidak bisa diklik, hanya tampil visual dan label
-  drawKabupatenBoundaries(selectedKabs);
+  drawKabupatenBoundaries(selectedKabs); // Definisikan overlayMaps BARU
 
-  // Definisikan overlayMaps BARU
   const overlayMaps = {
     "Titik POI": poiLayer,
     "Batas Kabupaten/Kota": kabupatenBoundaryLayer, // Gunakan lapisan batas kabupaten yang baru
     "Pemetaan Desa (Komoditas)": filteredGeojsonLayer, // Ganti nama agar lebih jelas
+  }; // Base layer sudah ditambahkan di DOMContentLoaded, jadi biarkan layer control hanya mengelola overlay
+
+  layerControl = L.control.layers(null, overlayMaps).addTo(map); // 🎯 PERUBAHAN BARU: Tambahkan legenda ke peta
+
+  addLegend();
+}
+
+// --- FUNGSI BARU: Menambahkan Legenda ke Peta ---
+function addLegend() {
+  // Legenda menggunakan L.Control.extend
+  const legend = L.control({ position: "bottomleft" });
+
+  legend.onAdd = function (map) {
+    const div = L.DomUtil.create("div", "info legend"); // Mendefinisikan label dan warna sesuai gambar dan kebutuhan
+    const grades = [
+      { label: "PADI", color: CUSTOM_COLOR_MAP.PADI },
+      { label: "KARET", color: CUSTOM_COLOR_MAP.KARET },
+      { label: "KOPI", color: CUSTOM_COLOR_MAP.KOPI },
+      { label: "LAINNYA", color: CUSTOM_COLOR_MAP.LAINNYA },
+    ];
+    const otherLabel = "Wilayah Perkotaan/<br>Data Tidak Tersedia"; // Judul legenda
+
+    div.innerHTML += "<h4>Komoditas Unggulan Desa</h4>"; // Loop melalui grade untuk menambahkan warna dan label
+
+    grades.forEach((item) => {
+      div.innerHTML +=
+        '<i style="background:' + item.color + '"></i> ' + item.label + "<br>";
+    }); // Tambahkan item untuk Wilayah Perkotaan (Putih) // Warna putih dari styleFeature jika TIPADM != 1
+
+    div.innerHTML +=
+      '<i style="background:#FFFFFF; border: 1px solid #000;"></i> ' +
+      otherLabel;
+
+    return div;
   };
 
-  // Base layer sudah ditambahkan di DOMContentLoaded, jadi biarkan layer control hanya mengelola overlay
-  layerControl = L.control.layers(null, overlayMaps).addTo(map);
+  legend.addTo(map);
 }
 
 // FUNGSI PLOTTING SEMUA POI (Kembali ke Circle Marker Merah yang Ringan)
@@ -502,31 +537,72 @@ function updateKPI(filteredGeoJson) {
 
 // --- 5. LOGIKA UPDATE CHARTS ---
 function updateCharts(filteredGeoJson) {
-  const features = filteredGeoJson.features;
+  const features = filteredGeoJson.features; // 🎯 PERUBAHAN: Hitung Komoditas berdasarkan keberadaan POI
 
-  const komoditasCount = features.reduce((acc, f) => {
-    const komoditas = f.properties.Prediksi || "LAINNYA";
-    // Hanya hitung jika TIPADM adalah 1 (Desa/Kelurahan)
-    if (f.properties.TIPADM == 1) {
-      acc[komoditas] = (acc[komoditas] || 0) + 1;
-    }
-    return acc;
-  }, {});
+  const komoditasCount = features.reduce(
+    (acc, f) => {
+      // Hanya hitung jika TIPADM adalah 1 (Desa/Kelurahan)
+      if (f.properties.TIPADM == 1) {
+        const komoditas = f.properties.Prediksi || "LAINNYA";
+        const hasPoi = (f.properties.jumlah_poi || 0) > 0;
+        const key = hasPoi ? "withPOI" : "withoutPOI";
 
-  const komoditasData = Object.entries(komoditasCount)
-    .map(([komoditas, count]) => ({
-      Komoditas: komoditas,
-      Jumlah: count,
-    }))
-    .sort((a, b) => a.Jumlah - b.Jumlah);
+        acc[key][komoditas] = (acc[key][komoditas] || 0) + 1;
+      }
+      return acc;
+    },
+    { withPOI: {}, withoutPOI: {} }
+  ); // Ambil semua nama komoditas unik
+
+  const allKomoditas = [
+    ...new Set([
+      ...Object.keys(komoditasCount.withPOI),
+      ...Object.keys(komoditasCount.withoutPOI),
+    ]),
+  ].sort(); // Data untuk Dengan POI Keuangan
+
+  const dataWithPOI = allKomoditas.map((k) => komoditasCount.withPOI[k] || 0);
+  const colorWithPOI = allKomoditas.map(
+    (k) => CUSTOM_COLOR_MAP[k.toUpperCase()] || "#808080"
+  ); // Data untuk Tanpa POI Keuangan
+
+  const dataWithoutPOI = allKomoditas.map(
+    (k) => komoditasCount.withoutPOI[k] || 0
+  ); // Warna abu-abu gelap untuk Tanpa POI Keuangan (berbeda dari LAINNYA)
+  const colorWithoutPOI = allKomoditas.map((k) => "#696969");
+
+  const traceWithPOI = {
+    x: dataWithPOI,
+    y: allKomoditas,
+    name: "Dengan POI Keuangan",
+    type: "bar",
+    orientation: "h",
+    marker: {
+      color: colorWithPOI,
+    },
+    hoverinfo: "x+y", // Tampilkan label saat di-hover
+  };
+
+  const traceWithoutPOI = {
+    x: dataWithoutPOI,
+    y: allKomoditas,
+    name: "Tanpa POI Keuangan",
+    type: "bar",
+    orientation: "h",
+    marker: {
+      color: colorWithoutPOI,
+    },
+    hoverinfo: "x+y", // Tampilkan label saat di-hover
+  };
 
   const layoutKomoditas = {
     title: {
-      text: "Distribusi Komoditas",
+      text: "Distribusi Komoditas Berdasarkan POI Keuangan",
       font: {
         size: 14,
       },
     },
+    barmode: "group", // 🎯 PERUBAHAN: Mode grup untuk Cluster Bar Chart
     margin: {
       t: 40,
       l: 120,
@@ -540,28 +616,22 @@ function updateCharts(filteredGeoJson) {
     yaxis: {
       automargin: true,
     },
+    legend: {
+      x: 1,
+      y: 0,
+      xanchor: "right",
+      yanchor: "bottom",
+    },
   };
 
   Plotly.newPlot(
     "chart-komoditas",
-    [
-      {
-        x: komoditasData.map((d) => d.Jumlah),
-        y: komoditasData.map((d) => d.Komoditas),
-        type: "bar",
-        orientation: "h",
-        marker: {
-          color: komoditasData.map(
-            (d) => CUSTOM_COLOR_MAP[d.Komoditas.toUpperCase()] || "#808080"
-          ),
-        },
-      },
-    ],
+    [traceWithPOI, traceWithoutPOI], // Gunakan kedua trace
     layoutKomoditas,
     {
       displayModeBar: false,
     }
-  );
+  ); // Kode chart-poi tidak berubah
 
   const poiDataDesa = features
     .filter((f) => f.properties.TIPADM == 1) // Hanya desa/kelurahan
@@ -615,7 +685,6 @@ function updateCharts(filteredGeoJson) {
     }
   );
 }
-
 // --- 6. LOGIKA DETAIL TABLE ---
 function formatNilai(key, value) {
   if (value === null || value === undefined) return "N/A";
