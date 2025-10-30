@@ -1,6 +1,6 @@
 // Data Global
 let geojsonData = null;
-let kabupatenData = null; // ⬅️ BARU: Data GeoJSON Kabupaten
+let kabupatenData = null; // Data GeoJSON Kabupaten
 let poiData = [];
 let filteredGeojsonLayer = null;
 let kabupatenBoundaryLayer = null; // Lapisan untuk Batas Kabupaten
@@ -82,7 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
 async function loadData() {
   try {
     const [geoJsonRes, poiJsonRes, kabRes] = await Promise.all([
-      // ⬅️ DITAMBAH: fetch data kabupaten
       fetch("data_desa.geojson"),
       fetch("data_poi.json"),
       fetch("data_kabupaten.geojson"),
@@ -90,7 +89,7 @@ async function loadData() {
 
     geojsonData = await geoJsonRes.json();
     poiData = await poiJsonRes.json();
-    kabupatenData = await kabRes.json(); // ⬅️ Data Kabupaten dimuat
+    kabupatenData = await kabRes.json(); // Data Kabupaten dimuat
 
     populateFilters();
     applyFilter();
@@ -190,7 +189,7 @@ function applyFilter() {
     features: filteredFeatures,
   };
 
-  // ⬅️ Kirim daftar kabupaten yang dipilih untuk memfilter batas kabupaten
+  // Kirim daftar kabupaten yang dipilih untuk memfilter batas kabupaten
   updateMap(filteredGeoJson, selectedKabupaten);
   updateKPI(filteredGeoJson);
   updateCharts(filteredGeoJson);
@@ -223,15 +222,15 @@ function getColor(d) {
 function styleFeature(feature) {
   return {
     fillColor: getColor(feature.properties.Prediksi),
-    weight: 1.5, // ⬅️ Batas tetap tipis
-    opacity: 1, // Opacity garis batas
-    color: "white", // Border Hitam Solid (Batas Desa)
+    weight: 1.5,
+    opacity: 1,
+    color: "black", // Border Hitam Solid (Batas Desa)
     dashArray: "",
-    fillOpacity: 1.0, // 🎯 DIUBAH: Fill Opacity Penuh (100%)
+    fillOpacity: 1.0, // 🎯 PERUBAHAN: Opacity Penuh (1.0) untuk fill desa
   };
 }
 
-// 🎯 FUNGSI BARU: Menggambar Batas Kabupaten/Kota dari GeoJSON terpisah
+// FUNGSI BARU: Menggambar Batas Kabupaten/Kota dari GeoJSON terpisah
 function drawKabupatenBoundaries(selectedKabs) {
   if (!kabupatenData) return;
 
@@ -241,10 +240,8 @@ function drawKabupatenBoundaries(selectedKabs) {
 
   // Filter data kabupaten berdasarkan filter desa/kabupaten yang aktif
   const filteredKabFeatures = kabupatenData.features.filter((f) => {
-    // Asumsi kolom nama kabupaten di data kabupaten adalah 'Kabupaten'
     const kabName = f.properties.Kabupaten || "";
-    // Jika tidak ada filter kabupaten (selectedKabs.length === 0), tampilkan semua.
-    // Jika ada, tampilkan yang sesuai.
+    // Jika tidak ada filter kabupaten, tampilkan semua. Jika ada, tampilkan yang sesuai.
     return selectedKabs.length === 0 || selectedKabs.includes(kabName);
   });
 
@@ -254,21 +251,32 @@ function drawKabupatenBoundaries(selectedKabs) {
   };
 
   kabupatenBoundaryLayer = L.geoJson(filteredKabData, {
+    // 🎯 PENYESUAIAN 1: Menonaktifkan klik pada batas kabupaten
     style: function (feature) {
       return {
         fillColor: "transparent",
         weight: 4, // Batas Sangat Tebal (Batas Kabupaten)
         opacity: 1,
         color: "#000000", // Batas Hitam Solid
-        fillOpacity: 0.0, // Fill Benar-benar Transparan (100% border opacity)
+        fillOpacity: 0.0,
+        clickable: false, // 🎯 KUNCI: Poligon ini tidak bisa diklik/diinteraksi
       };
     },
     onEachFeature: function (feature, layer) {
       const kabName = feature.properties.Kabupaten || "Kabupaten/Kota";
-      layer.bindTooltip(`Batas: ${kabName}`, {
-        permanent: false,
-        direction: "auto",
-      });
+
+      // 🎯 PENYESUAIAN 2: Menggunakan Permanent Tooltip untuk label
+      layer
+        .bindTooltip(
+          `<b style="text-shadow: 1px 1px #ffffff;">${kabName}</b>`, // Label nama dengan outline putih
+          {
+            permanent: true, // Label akan selalu terlihat
+            direction: "center", // Posisikan di tengah poligon
+            className: "kab-label-tooltip",
+            opacity: 0.9,
+          }
+        )
+        .openTooltip(); // Pastikan label muncul
     },
   }).addTo(map);
 
@@ -332,6 +340,7 @@ function zoomToFeature(e) {
 }
 
 function onEachFeature(feature, layer) {
+  // Hanya layer desa yang memiliki event interaksi
   layer.on({
     mouseover: highlightFeature,
     mouseout: resetHighlight,
@@ -340,12 +349,13 @@ function onEachFeature(feature, layer) {
 }
 
 function updateMap(filteredGeoJson, selectedKabs) {
-  // ⬅️ Menerima filter kabupaten
+  // Menerima filter kabupaten
   if (filteredGeojsonLayer) {
     map.removeLayer(filteredGeojsonLayer);
     selectedFeature = null;
   }
 
+  // Hapus layer kabupaten sebelum digambar ulang
   if (kabupatenBoundaryLayer) {
     map.removeLayer(kabupatenBoundaryLayer);
   }
@@ -365,13 +375,14 @@ function updateMap(filteredGeoJson, selectedKabs) {
 
   updatePoiMarkers();
 
-  // ⬅️ Panggil fungsi untuk menggambar batas kabupaten dari data baru dan terfilter
+  // Panggil fungsi untuk menggambar batas kabupaten dari data baru dan terfilter
+  // Batas ini sekarang tidak bisa diklik, hanya tampil visual dan label
   drawKabupatenBoundaries(selectedKabs);
 
   // Definisikan overlayMaps BARU
   const overlayMaps = {
     "Titik POI": poiLayer,
-    "Batas Kabupaten/Kota": kabupatenBoundaryLayer, // ⬅️ Gunakan lapisan batas kabupaten yang baru
+    "Batas Kabupaten/Kota": kabupatenBoundaryLayer, // Gunakan lapisan batas kabupaten yang baru
     "Pemetaan Desa (Komoditas)": filteredGeojsonLayer, // Ganti nama agar lebih jelas
   };
 
@@ -379,7 +390,7 @@ function updateMap(filteredGeoJson, selectedKabs) {
   layerControl = L.control.layers(null, overlayMaps).addTo(map);
 }
 
-// 🎯 FUNGSI PLOTTING SEMUA POI (Kembali ke Circle Marker Merah yang Ringan) 🎯
+// FUNGSI PLOTTING SEMUA POI (Kembali ke Circle Marker Merah yang Ringan)
 function updatePoiMarkers() {
   poiLayer.clearLayers();
 
@@ -464,11 +475,25 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
-    title: { text: "Distribusi Komoditas", font: { size: 14 } },
-    margin: { t: 40, l: 120, r: 10, b: 40 },
+    title: {
+      text: "Distribusi Komoditas",
+      font: {
+        size: 14,
+      },
+    },
+    margin: {
+      t: 40,
+      l: 120,
+      r: 10,
+      b: 40,
+    },
     height: 350,
-    xaxis: { title: "Jumlah Wilayah" },
-    yaxis: { automargin: true },
+    xaxis: {
+      title: "Jumlah Wilayah",
+    },
+    yaxis: {
+      automargin: true,
+    },
   };
 
   Plotly.newPlot(
@@ -487,7 +512,9 @@ function updateCharts(filteredGeoJson) {
       },
     ],
     layoutKomoditas,
-    { displayModeBar: false }
+    {
+      displayModeBar: false,
+    }
   );
 
   const poiDataDesa = features
@@ -503,12 +530,23 @@ function updateCharts(filteredGeoJson) {
   const layoutPoi = {
     title: {
       text: "Top 10 Wilayah Berdasarkan POI Keuangan",
-      font: { size: 14 },
+      font: {
+        size: 14,
+      },
     },
-    margin: { t: 40, l: 120, r: 10, b: 40 },
+    margin: {
+      t: 40,
+      l: 120,
+      r: 10,
+      b: 40,
+    },
     height: 350,
-    xaxis: { title: "Total POI" },
-    yaxis: { automargin: true },
+    xaxis: {
+      title: "Total POI",
+    },
+    yaxis: {
+      automargin: true,
+    },
   };
 
   Plotly.newPlot(
@@ -525,7 +563,9 @@ function updateCharts(filteredGeoJson) {
       },
     ],
     layoutPoi,
-    { displayModeBar: false }
+    {
+      displayModeBar: false,
+    }
   );
 }
 
