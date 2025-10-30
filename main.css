@@ -82,7 +82,7 @@ aside {
 .kab-label-tooltip .leaflet-tooltip-content {
   /* 1. MENGGANTI FONT & MEMPERBESAR UKURAN */
   font-family: "Poppins", sans-serif; /* Menggunakan Poppins */
-  font-size: 18px; /* Ukuran yang lebih besar agar terlihat jelas */
+  font-size: 3em; /* Ukuran yang lebih besar agar terlihat jelas */
   font-weight: 900; /* Dibuat lebih tebal */
 
   /* 2. MENGGANTI SHADOW (Bukan Outline) */
