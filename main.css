@@ -33,20 +33,20 @@ aside {
   border-color: #a0002e !important;
 }
 
-/* Select Filter */
+/* Select Filter (jika masih digunakan di masa depan) */
 #kabupaten-select {
   border-radius: 0.5rem;
 }
 
 /* ================================================= */
-/* ✅ CHECKBOX FILTER AREA */
+/* ✅ CHECKBOX FILTER AREA (Sudah Disesuaikan) */
 /* ================================================= */
 
 .checkbox-scroll {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid #ccc;
-  padding: 8px 10px;
+  padding: 8px 10px; /* Padding di sekitar scroll container */
   border-radius: 4px;
   margin-bottom: 12px;
 }
@@ -55,14 +55,19 @@ aside {
 .checkbox-scroll .form-check {
   margin-bottom: 0.2rem;
   padding-right: 10px;
+  /* PERBAIKAN: Hapus padding kiri default Bootstrap untuk perataan ketat */
+  padding-left: 0 !important;
 }
 
 /* Checkbox alignment */
 .checkbox-scroll .form-check-input {
   float: none;
+  /* PERBAIKAN: Pastikan margin kiri 0 untuk menggeser checkbox ke kiri */
   margin-left: 0;
-  margin-right: 8px;
+  margin-right: 8px; /* Jarak antara checkbox dan label */
   vertical-align: middle;
+  /* Atur sedikit margin atas untuk perataan vertikal yang lebih baik dengan label */
+  margin-top: 0.25em;
 }
 
 /* Label sejajar & tidak terpotong */
@@ -72,7 +77,7 @@ aside {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 90%;
+  max-width: 95%; /* Disesuaikan lebih lebar karena padding kiri hilang */
 }
 
 /* ================================================= */
