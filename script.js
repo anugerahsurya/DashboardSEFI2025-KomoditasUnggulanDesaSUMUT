@@ -222,7 +222,7 @@ function getColor(d) {
 function styleFeature(feature) {
   return {
     fillColor: getColor(feature.properties.Prediksi),
-    weight: 1,
+    weight: 0.5,
     opacity: 1,
     color: "white", // Border Hitam Solid (Batas Desa)
     dashArray: "",

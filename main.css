@@ -80,10 +80,12 @@ aside {
 
 /* Styling untuk teks label agar mudah dibaca */
 .kab-label-tooltip .leaflet-tooltip-content {
-  /* Pastikan teks berada di atas poligon */
-  color: #000000;
-  font-weight: bold;
-  font-size: 14px;
-  text-shadow: 1px 1px #ffffff, -1px -1px #ffffff, 1px -1px #ffffff,
-    -1px 1px #ffffff; /* Outline putih agar kontras */
+  /* 1. MENGGANTI FONT & MEMPERBESAR UKURAN */
+  font-family: "Poppins", sans-serif; /* Menggunakan Poppins */
+  font-size: 18px; /* Ukuran yang lebih besar agar terlihat jelas */
+  font-weight: 900; /* Dibuat lebih tebal */
+
+  /* 2. MENGGANTI SHADOW (Bukan Outline) */
+  color: #000000; /* Warna teks hitam */
+  text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.7);
 }
