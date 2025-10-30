@@ -369,7 +369,6 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => a.Jumlah - b.Jumlah);
 
   const layoutKomoditas = {
-    title: "Jumlah Desa berdasarkan Komoditas",
     margin: { t: 40, l: 100, r: 10, b: 20 },
     height: 350,
     xaxis: { title: "Jumlah Desa" },
@@ -409,7 +408,6 @@ function updateCharts(filteredGeoJson) {
     .sort((a, b) => b.Jumlah - a.Jumlah);
 
   const layoutPoi = {
-    title: "Total POI berdasarkan Kabupaten/Kota",
     margin: { t: 40, l: 40, r: 10, b: 120 },
     height: 350,
     xaxis: { title: "Kabupaten/Kota", tickangle: 45 },
