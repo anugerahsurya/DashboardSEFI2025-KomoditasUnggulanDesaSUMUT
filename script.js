@@ -393,8 +393,8 @@ function updateCharts(filteredGeoJson) {
 
   const poiDataDesa = features
     .map((f) => ({
-      // Membuat label gabungan Desa (Kecamatan, Kabupaten)
-      label: `${f.properties.WADMKD} (${f.properties.WADMKC}, ${f.properties.Kabupaten})`,
+      // MODIFIKASI: HANYA MENGGUNAKAN NAMA DESA
+      label: f.properties.WADMKD,
       jumlah: f.properties.jumlah_poi || 0,
     }))
     .filter((d) => d.jumlah > 0) // Hanya desa dengan POI > 0
@@ -403,9 +403,9 @@ function updateCharts(filteredGeoJson) {
     .reverse(); // Balikkan urutan untuk Plotly (tertinggi di atas)
 
   const layoutPoi = {
-    margin: { t: 40, l: 200, r: 10, b: 40 }, // Tingkatkan margin kiri untuk label panjang
+    margin: { t: 40, l: 120, r: 10, b: 40 }, // Margin disesuaikan
     height: 350,
-    xaxis: { title: "Total POI Fasilitas Keuangan" },
+    xaxis: { title: "Total POI" },
     yaxis: { automargin: true },
   };
 
@@ -418,8 +418,7 @@ function updateCharts(filteredGeoJson) {
         type: "bar",
         orientation: "h",
         marker: {
-          color: poiDataDesa.map((d) => d.jumlah),
-          colorscale: "Viridis",
+          color: "steelblue", // MODIFIKASI: Menggunakan warna tunggal 'steelblue'
         },
       },
     ],
