@@ -11,10 +11,10 @@ let layerControl = null; // Dideklarasikan untuk kontrol layer
 
 // Definisi Warna Kustom (mirip Python)
 const CUSTOM_COLOR_MAP = {
-  KARET: "#FFBF00", // Kuning
-  KOPI: "#492C18", // Coklat gelap
-  PADI: "#1A9B23", // Hijau
-  LAINNYA: "#808080", // Abu-abu
+  KARET: "#2E8B57", // Kuning
+  KOPI: "#8B4513", // Coklat gelap
+  PADI: "#FFD700", // Hijau
+  LAINNYA: "#A9A9A9", // Abu-abu
 };
 const MARKER_COLOR_POI = "#DC3545"; // Merah Bootstrap
 
@@ -220,13 +220,25 @@ function getColor(d) {
 }
 
 function styleFeature(feature) {
+  // 🎯 PERUBAHAN: Jika TIPADM BUKAN 1, gunakan warna putih (#FFFFFF)
+  if (feature.properties.TIPADM && feature.properties.TIPADM != 1) {
+    return {
+      fillColor: "#FFFFFF", // Warna Putih
+      weight: 0.5,
+      opacity: 1,
+      color: "white",
+      dashArray: "",
+      fillOpacity: 1.0,
+    };
+  }
+
   return {
     fillColor: getColor(feature.properties.Prediksi),
     weight: 0.5,
     opacity: 1,
-    color: "white", // Border Hitam Solid (Batas Desa)
+    color: "white", // Border Putih (Batas Desa)
     dashArray: "",
-    fillOpacity: 1.0, // 🎯 PERUBAHAN: Opacity Penuh (1.0) untuk fill desa
+    fillOpacity: 1.0, // Opacity Penuh (1.0) untuk fill desa
   };
 }
 
@@ -297,6 +309,11 @@ function highlightFeature(e) {
   const layer = e.target;
   const props = layer.feature.properties;
 
+  // Hanya highlight jika TIPADM adalah 1 (Desa/Kelurahan)
+  if (props.TIPADM && props.TIPADM != 1) {
+    return; // Jangan lakukan highlight jika bukan desa/kelurahan
+  }
+
   if (layer !== selectedFeature) {
     layer.setStyle({
       weight: 3,
@@ -322,6 +339,11 @@ function highlightFeature(e) {
 
 function resetHighlight(e) {
   const layer = e.target;
+  // Hanya reset highlight jika TIPADM adalah 1 (Desa/Kelurahan)
+  if (layer.feature.properties.TIPADM && layer.feature.properties.TIPADM != 1) {
+    return;
+  }
+
   if (layer !== selectedFeature) {
     filteredGeojsonLayer.resetStyle(layer);
   }
@@ -329,6 +351,18 @@ function resetHighlight(e) {
 
 function zoomToFeature(e) {
   const layer = e.target;
+  const props = layer.feature.properties;
+
+  // Hanya zoom/select jika TIPADM adalah 1 (Desa/Kelurahan)
+  if (props.TIPADM && props.TIPADM != 1) {
+    // Jika diklik, dan bukan desa/kelurahan, kembalikan highlight/style ke kondisi awal
+    if (selectedFeature) {
+      filteredGeojsonLayer.resetStyle(selectedFeature);
+    }
+    selectedFeature = null;
+    updateDetailTable(null);
+    return;
+  }
 
   if (selectedFeature) {
     filteredGeojsonLayer.resetStyle(selectedFeature);
@@ -349,7 +383,7 @@ function zoomToFeature(e) {
 }
 
 function onEachFeature(feature, layer) {
-  // Hanya layer desa yang memiliki event interaksi
+  // Hanya layer desa yang memiliki event interaksi (meski highlight/click dibatasi di dalam fungsi)
   layer.on({
     mouseover: highlightFeature,
     mouseout: resetHighlight,
@@ -472,7 +506,10 @@ function updateCharts(filteredGeoJson) {
 
   const komoditasCount = features.reduce((acc, f) => {
     const komoditas = f.properties.Prediksi || "LAINNYA";
-    acc[komoditas] = (acc[komoditas] || 0) + 1;
+    // Hanya hitung jika TIPADM adalah 1 (Desa/Kelurahan)
+    if (f.properties.TIPADM == 1) {
+      acc[komoditas] = (acc[komoditas] || 0) + 1;
+    }
     return acc;
   }, {});
 
@@ -527,6 +564,7 @@ function updateCharts(filteredGeoJson) {
   );
 
   const poiDataDesa = features
+    .filter((f) => f.properties.TIPADM == 1) // Hanya desa/kelurahan
     .map((f) => ({
       label: f.properties.WADMKD || f.properties.Kabupaten || "Wilayah",
       jumlah: f.properties.jumlah_poi || 0,
@@ -618,6 +656,15 @@ function updateDetailTable(properties) {
       '<tr><td colspan="2">Klik desa untuk melihat data.</td></tr>';
     titlePlaceholder.innerHTML =
       '<p class="mb-2">Silakan **klik** pada salah satu desa di peta untuk menampilkan detail atribut.</p>';
+    return;
+  }
+
+  // Jika properti tersedia tetapi TIPADM bukan 1, tampilkan pesan peringatan
+  if (properties.TIPADM && properties.TIPADM != 1) {
+    tableBody.innerHTML =
+      '<tr><td colspan="2">Data ini bukan Desa/Kelurahan (TIPADM $\\neq$ 1). Detail tidak ditampilkan.</td></tr>';
+    titlePlaceholder.innerHTML =
+      '<p class="mb-2 text-danger">Wilayah **non-Desa/Kelurahan** terpilih.</p>';
     return;
   }
 
