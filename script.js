@@ -351,11 +351,9 @@ function updateKPI(filteredGeoJson) {
 
 // --- 5. LOGIKA UPDATE CHARTS (Menggunakan Plotly.js) ---
 function updateCharts(filteredGeoJson) {
-  const features = filteredGeoJson.features; // Chart 1: Distribusi Desa per Komoditas (Pengganti Pandas value_counts)
+  const features = filteredGeoJson.features; // ----------------------------------------------------------------- // CHART 1: DISTRIBUSI DESA PER KOMODITAS (TETAP) // -----------------------------------------------------------------
 
   const komoditasCount = features.reduce((acc, f) => {
-    // Abaikan TIPADM==2 di chart komoditas jika tidak relevan dengan fokus
-    // Namun, karena filter ini hanya visual, kita tetap menggunakan data yang ada.
     const komoditas = f.properties.Prediksi || "LAINNYA";
     acc[komoditas] = (acc[komoditas] || 0) + 1;
     return acc;
@@ -391,38 +389,36 @@ function updateCharts(filteredGeoJson) {
       },
     ],
     layoutKomoditas
-  ); // Chart 2: Total POI per Kabupaten/Kota (Pengganti Pandas Groupby Sum)
+  ); // ----------------------------------------------------------------- // CHART 2: TOP 10 DESA BERDASARKAN JUMLAH POI (DISESUAIKAN) // -----------------------------------------------------------------
 
-  const poiSum = features.reduce((acc, f) => {
-    const kabupaten = f.properties.Kabupaten || "N/A";
-    const jumlahPoi = f.properties.jumlah_poi || 0;
-    acc[kabupaten] = (acc[kabupaten] || 0) + jumlahPoi;
-    return acc;
-  }, {});
-
-  const poiDataKab = Object.entries(poiSum)
-    .map(([kab, count]) => ({
-      Kabupaten: kab,
-      Jumlah: count,
+  const poiDataDesa = features
+    .map((f) => ({
+      // Membuat label gabungan Desa (Kecamatan, Kabupaten)
+      label: `${f.properties.WADMKD} (${f.properties.WADMKC}, ${f.properties.Kabupaten})`,
+      jumlah: f.properties.jumlah_poi || 0,
     }))
-    .sort((a, b) => b.Jumlah - a.Jumlah);
+    .filter((d) => d.jumlah > 0) // Hanya desa dengan POI > 0
+    .sort((a, b) => b.jumlah - a.jumlah) // Urutkan dari terbesar ke terkecil
+    .slice(0, 10) // Ambil hanya 10 desa teratas
+    .reverse(); // Balikkan urutan untuk Plotly (tertinggi di atas)
 
   const layoutPoi = {
-    margin: { t: 40, l: 40, r: 10, b: 120 },
+    margin: { t: 40, l: 200, r: 10, b: 40 }, // Tingkatkan margin kiri untuk label panjang
     height: 350,
-    xaxis: { title: "Kabupaten/Kota", tickangle: 45 },
-    yaxis: { title: "Total POI" },
+    xaxis: { title: "Total POI Fasilitas Keuangan" },
+    yaxis: { automargin: true },
   };
 
   Plotly.newPlot(
     "chart-poi",
     [
       {
-        x: poiDataKab.map((d) => d.Kabupaten),
-        y: poiDataKab.map((d) => d.Jumlah),
+        x: poiDataDesa.map((d) => d.jumlah),
+        y: poiDataDesa.map((d) => d.label),
         type: "bar",
+        orientation: "h",
         marker: {
-          color: poiDataKab.map((d) => d.Jumlah),
+          color: poiDataDesa.map((d) => d.jumlah),
           colorscale: "Viridis",
         },
       },
