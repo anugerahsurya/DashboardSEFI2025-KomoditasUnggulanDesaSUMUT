@@ -7,7 +7,8 @@ let kabupatenBoundaryLayer = null; // Lapisan untuk Batas Kabupaten
 let poiLayer = null;
 let selectedFeature = null;
 let map = null;
-let layerControl = null; // Dideklarasikan untuk kontrol layer
+let layerControl = null;
+let legendControl = null; // Untuk mengelola legenda dengan lebih baik
 
 // Definisi Warna Kustom (mirip Python)
 const CUSTOM_COLOR_MAP = {
@@ -84,6 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
 async function loadData() {
   try {
     const [geoJsonRes, poiJsonRes, kabRes] = await Promise.all([
+      // Pastikan path ini benar!
       fetch("data_desa.geojson"),
       fetch("data_poi.json"),
       fetch("data_kabupaten.geojson"),
@@ -94,9 +96,7 @@ async function loadData() {
     kabupatenData = await kabRes.json(); // Data Kabupaten dimuat
 
     populateFilters();
-    applyFilter();
-
-    updatePoiMarkers();
+    applyFilter(); // Memanggil applyFilter pertama kali
 
     if (poiLayer.getLayers().length > 0) {
       map.fitBounds(poiLayer.getBounds());
@@ -108,11 +108,13 @@ async function loadData() {
   }
 }
 
-// --- 2. LOGIKA FILTER (GeoJSON) ---
+// --- 2. LOGIKA FILTER (Checkbox dinamis) ---
 
 function populateFilters() {
-  const selectKab = document.getElementById("kabupaten-select");
-  const selectKomoditas = document.getElementById("komoditas-select");
+  const containerKab = document.getElementById("kabupaten-filter-container");
+  const containerKomoditas = document.getElementById(
+    "komoditas-filter-container"
+  );
 
   const kabList = new Set();
   const komoditasList = new Set();
@@ -124,41 +126,98 @@ function populateFilters() {
     }
   });
 
-  selectKab.innerHTML = ""; // Tambahkan opsi 'Semua Kabupaten'
-  let optionAll = document.createElement("option");
-  optionAll.value = "";
-  optionAll.textContent = "Semua Kabupaten";
-  selectKab.appendChild(optionAll);
+  // Fungsi pembantu untuk membuat checkbox
+  const createCheckbox = (value, text, groupName, container) => {
+    const div = document.createElement("div");
+    div.classList.add("form-check");
+
+    const input = document.createElement("input");
+    input.classList.add("form-check-input");
+    input.type = "checkbox";
+    input.value = value;
+    input.id = `${groupName}-${value.replace(/\s/g, "_")}`;
+    input.name = groupName;
+
+    const label = document.createElement("label");
+    label.classList.add("form-check-label");
+    label.htmlFor = input.id;
+    label.textContent = text;
+
+    div.appendChild(input);
+    div.appendChild(label);
+    container.appendChild(div);
+  };
+
+  // 1. Populating Kabupaten Checkboxes
+  containerKab.innerHTML = ""; // Bersihkan placeholder 'Memuat daftar...'
+
+  // Opsi 'Pilih Semua'
+  createCheckbox("ALL", "PILIH SEMUA", "kabupaten", containerKab);
 
   [...kabList].sort().forEach((kab) => {
-    const option = document.createElement("option");
-    option.value = kab;
-    option.textContent = kab;
-    selectKab.appendChild(option);
+    createCheckbox(kab, kab, "kabupaten", containerKab);
   });
 
-  selectKomoditas.innerHTML = "";
+  // 2. Populating Komoditas Checkboxes
+  containerKomoditas.innerHTML = ""; // Bersihkan placeholder 'Memuat daftar...'
+
+  // Opsi 'Pilih Semua'
+  createCheckbox("ALL", "PILIH SEMUA", "komoditas", containerKomoditas);
+
   [...komoditasList].sort().forEach((komoditas) => {
-    const option = document.createElement("option");
-    option.value = komoditas;
-    option.textContent = komoditas;
-    selectKomoditas.appendChild(option);
+    createCheckbox(komoditas, komoditas, "komoditas", containerKomoditas);
   });
+
+  // Tambahkan event listener untuk fungsionalitas 'PILIH SEMUA'
+  const setupSelectAll = (containerId, groupName) => {
+    const allCheckbox = document.querySelector(
+      `#${containerId} input[value='ALL']`
+    );
+    const otherCheckboxes = Array.from(
+      document.querySelectorAll(
+        `#${containerId} input[name='${groupName}']:not([value='ALL'])`
+      )
+    );
+
+    allCheckbox.addEventListener("change", (e) => {
+      otherCheckboxes.forEach((cb) => {
+        cb.checked = e.target.checked;
+      });
+    });
+  };
+
+  setupSelectAll("kabupaten-filter-container", "kabupaten");
+  setupSelectAll("komoditas-filter-container", "komoditas");
 }
 
 function applyFilter() {
-  const selectKabupaten = document.getElementById("kabupaten-select"); // Ambil semua pilihan, jika ada yang dipilih, gunakan yang dipilih. Jika tidak, anggap semua.
-  const selectedKabupaten = Array.from(selectKabupaten.selectedOptions)
-    .map((option) => option.value)
-    .filter((val) => val !== ""); // Hapus nilai kosong jika 'Semua Kabupaten' dipilih
+  // Fungsi baru untuk mendapatkan nilai checkbox yang dicentang
+  const getCheckedValues = (containerId) => {
+    const checkboxes = Array.from(
+      document.querySelectorAll(`#${containerId} input:checked`)
+    );
+    // Hapus 'ALL' dari daftar yang dikembalikan
+    let values = checkboxes
+      .map((cb) => cb.value)
+      .filter((val) => val !== "ALL");
 
-  const selectKomoditas = document.getElementById("komoditas-select");
-  const selectedKomoditas = Array.from(selectKomoditas.selectedOptions).map(
-    (option) => option.value
-  );
+    // Jika tidak ada yang dipilih, dan 'ALL' tidak ada, anggap semua tidak dipilih
+    if (
+      checkboxes.length === 0 ||
+      checkboxes.find((cb) => cb.value === "ALL" && cb.checked)
+    ) {
+      return []; // Jika 'Semua' dicentang atau tidak ada yang dicentang (default: Semua), kembalikan array kosong
+    }
+
+    return values;
+  };
+
+  const selectedKabupaten = getCheckedValues("kabupaten-filter-container");
+  const selectedKomoditas = getCheckedValues("komoditas-filter-container");
 
   let filteredFeatures = geojsonData.features;
 
+  // Logika Filter
   if (selectedKabupaten.length > 0) {
     filteredFeatures = filteredFeatures.filter((f) =>
       selectedKabupaten.includes(f.properties.Kabupaten)
@@ -171,10 +230,10 @@ function applyFilter() {
     );
   }
 
-  const filterCount = selectedKabupaten.length + selectedKomoditas.length;
+  // Update Status Filter
   const totalAll = geojsonData.features.length;
 
-  if (filterCount > 0) {
+  if (selectedKabupaten.length > 0 || selectedKomoditas.length > 0) {
     document.getElementById(
       "filter-status"
     ).innerHTML = `<span class="text-success">✔️ ${filteredFeatures.length} wilayah terpilih.</span>`;
@@ -187,7 +246,7 @@ function applyFilter() {
   const filteredGeoJson = {
     type: "FeatureCollection",
     features: filteredFeatures,
-  }; // Kirim daftar kabupaten yang dipilih untuk memfilter batas kabupaten
+  };
 
   updateMap(filteredGeoJson, selectedKabupaten);
   updateKPI(filteredGeoJson);
@@ -196,17 +255,11 @@ function applyFilter() {
 }
 
 function resetFilter() {
-  Array.from(document.getElementById("kabupaten-select").options).forEach(
-    (option) => (option.selected = false)
-  ); // Pilih opsi 'Semua Kabupaten' setelah reset
-  const optionAll = document.querySelector(
-    "#kabupaten-select option[value='']"
+  // Reset semua checkbox menjadi tidak dicentang
+  const allCheckboxes = document.querySelectorAll(
+    "#kabupaten-filter-container input, #komoditas-filter-container input"
   );
-  if (optionAll) optionAll.selected = true;
-
-  Array.from(document.getElementById("komoditas-select").options).forEach(
-    (option) => (option.selected = false)
-  );
+  allCheckboxes.forEach((cb) => (cb.checked = false));
   applyFilter();
 }
 
@@ -246,10 +299,12 @@ function drawKabupatenBoundaries(selectedKabs) {
 
   if (kabupatenBoundaryLayer) {
     map.removeLayer(kabupatenBoundaryLayer);
-  } // Filter data kabupaten berdasarkan filter desa/kabupaten yang aktif
+  }
 
+  // Filter data kabupaten
   const filteredKabFeatures = kabupatenData.features.filter((f) => {
-    const kabName = f.properties.Kabupaten || ""; // Jika tidak ada filter kabupaten, tampilkan semua. Jika ada, tampilkan yang sesuai.
+    const kabName = f.properties.Kabupaten || "";
+    // Tampilkan kabupaten jika selectedKabs kosong (tampilkan semua) ATAU jika nama kabupaten ada di daftar yang dipilih
     return selectedKabs.length === 0 || selectedKabs.includes(kabName);
   });
 
@@ -270,33 +325,33 @@ function drawKabupatenBoundaries(selectedKabs) {
       };
     },
     onEachFeature: function (feature, layer) {
-      // SOLUSI KUNCI: Gunakan CSS pointer-events: none.
+      // SOLUSI KUNCI: Gunakan CSS pointer-events: none. Agar batas ini tidak menghalangi klik pada desa di bawahnya
       if (layer._path) {
         layer._path.style.pointerEvents = "none";
       }
 
-      const kabName = feature.properties.Kabupaten || "Kabupaten/Kota"; // Menggunakan Permanent Tooltip untuk label
+      const kabName = feature.properties.Kabupaten || "Kabupaten/Kota";
 
       layer
         .bindTooltip(
-          `<b style="text-shadow: 1px 1px #ffffff;">${kabName}</b>`, // Label nama dengan outline putih
+          `<b style="text-shadow: 1px 1px #ffffff;">${kabName}</b>`,
           {
-            permanent: true, // Label akan selalu terlihat
-            direction: "center", // Posisikan di tengah poligon
+            permanent: true,
+            direction: "center",
             className: "kab-label-tooltip",
             opacity: 0.9,
           }
         )
-        .openTooltip(); // Pastikan label muncul
+        .openTooltip();
     },
-  }).addTo(map); // Pastikan batas kabupaten ada di atas semua poligon desa
+  }).addTo(map);
 
   kabupatenBoundaryLayer.bringToFront();
 }
 
 function highlightFeature(e) {
   const layer = e.target;
-  const props = layer.feature.properties; // Hanya highlight jika TIPADM adalah 1 (Desa/Kelurahan)
+  const props = layer.feature.properties;
 
   if (props.TIPADM && props.TIPADM != 1) {
     return; // Jangan lakukan highlight jika bukan desa/kelurahan
@@ -312,35 +367,37 @@ function highlightFeature(e) {
     if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
       layer.bringToFront();
     }
-  } // Pastikan batas kabupaten tetap di atas desa yang sedang di-hover
+  }
   if (kabupatenBoundaryLayer) kabupatenBoundaryLayer.bringToFront();
 
   const popupContent = `
-        <b>Kabupaten:</b> ${props.Kabupaten || "N/A"}<br>
-        <b>Desa:</b> ${props.WADMKD || "N/A"}<br>
-        <b>Komoditas:</b> ${props.Prediksi || "N/A"}<br>
-        <b>Jumlah POI:</b> ${props.jumlah_poi || 0}
-    `;
+        <b>Kabupaten:</b> ${props.Kabupaten || "N/A"}<br>
+        <b>Desa:</b> ${props.WADMKD || "N/A"}<br>
+        <b>Komoditas:</b> ${props.Prediksi || "N/A"}<br>
+        <b>Jumlah POI:</b> ${props.jumlah_poi || 0}
+    `;
   layer.bindTooltip(popupContent).openTooltip();
 }
 
 function resetHighlight(e) {
-  const layer = e.target; // Hanya reset highlight jika TIPADM adalah 1 (Desa/Kelurahan)
+  const layer = e.target;
   if (layer.feature.properties.TIPADM && layer.feature.properties.TIPADM != 1) {
     return;
   }
 
   if (layer !== selectedFeature) {
-    filteredGeojsonLayer.resetStyle(layer);
+    // Cek apakah filteredGeojsonLayer sudah ada sebelum resetStyle
+    if (filteredGeojsonLayer) {
+      filteredGeojsonLayer.resetStyle(layer);
+    }
   }
 }
 
 function zoomToFeature(e) {
   const layer = e.target;
-  const props = layer.feature.properties; // Hanya zoom/select jika TIPADM adalah 1 (Desa/Kelurahan)
+  const props = layer.feature.properties;
 
   if (props.TIPADM && props.TIPADM != 1) {
-    // Jika diklik, dan bukan desa/kelurahan, kembalikan highlight/style ke kondisi awal
     if (selectedFeature) {
       filteredGeojsonLayer.resetStyle(selectedFeature);
     }
@@ -368,7 +425,6 @@ function zoomToFeature(e) {
 }
 
 function onEachFeature(feature, layer) {
-  // Hanya layer desa yang memiliki event interaksi (meski highlight/click dibatasi di dalam fungsi)
   layer.on({
     mouseover: highlightFeature,
     mouseout: resetHighlight,
@@ -378,6 +434,11 @@ function onEachFeature(feature, layer) {
 
 // FUNGSI: Menambahkan Legenda ke Peta
 function addLegend() {
+  // Hapus legenda lama jika ada
+  if (legendControl) {
+    map.removeControl(legendControl);
+  }
+
   const legend = L.control({ position: "bottomleft" });
 
   legend.onAdd = function (map) {
@@ -388,14 +449,14 @@ function addLegend() {
       { label: "KOPI", color: CUSTOM_COLOR_MAP.KOPI },
       { label: "LAINNYA", color: CUSTOM_COLOR_MAP.LAINNYA },
     ];
-    const otherLabel = "Wilayah Perkotaan/<br>Data Tidak Tersedia"; // Judul legenda
+    const otherLabel = "Wilayah Perkotaan/<br>Data Tidak Tersedia";
 
-    div.innerHTML += "<h4>Komoditas Unggulan Desa</h4>"; // Loop melalui grade untuk menambahkan warna dan label
+    div.innerHTML += "<h4>Komoditas Unggulan Desa</h4>";
 
     grades.forEach((item) => {
       div.innerHTML +=
         '<i style="background:' + item.color + '"></i> ' + item.label + "<br>";
-    }); // Tambahkan item untuk Wilayah Perkotaan (Putih)
+    });
 
     div.innerHTML +=
       '<i style="background:#FFFFFF; border: 1px solid #000;"></i> ' +
@@ -403,34 +464,24 @@ function addLegend() {
 
     return div;
   };
-
+  legendControl = legend; // Simpan referensi control
   legend.addTo(map);
 }
 
 function updateMap(filteredGeoJson, selectedKabs) {
-  // Menerima filter kabupaten
+  // 1. Hapus Layer Desa Lama
   if (filteredGeojsonLayer) {
     map.removeLayer(filteredGeojsonLayer);
     selectedFeature = null;
-  } // Hapus layer kabupaten sebelum digambar ulang
-
-  if (kabupatenBoundaryLayer) {
-    map.removeLayer(kabupatenBoundaryLayer);
   }
 
-  if (layerControl) {
-    map.removeControl(layerControl);
-  } // Menghapus legenda lama sebelum digambar ulang
-  map.eachControl((control) => {
-    if (
-      control.getPosition() === "bottomleft" &&
-      control._container &&
-      control._container.classList.contains("legend")
-    ) {
-      map.removeControl(control);
-    }
-  });
+  // 2. Hapus Layer POI Lama dan Gambar Ulang
+  updatePoiMarkers(filteredGeoJson);
 
+  // 3. Gambar Ulang Batas Kabupaten
+  drawKabupatenBoundaries(selectedKabs);
+
+  // 4. Gambar Layer Desa Baru
   filteredGeojsonLayer = L.geoJson(filteredGeoJson, {
     style: styleFeature,
     onEachFeature: onEachFeature,
@@ -440,25 +491,40 @@ function updateMap(filteredGeoJson, selectedKabs) {
     map.fitBounds(filteredGeojsonLayer.getBounds());
   }
 
-  updatePoiMarkers(); // Panggil fungsi untuk menggambar batas kabupaten
-
-  drawKabupatenBoundaries(selectedKabs); // Definisikan overlayMaps BARU
-
+  // 5. Update Layer Control
+  if (layerControl) {
+    map.removeControl(layerControl);
+  }
   const overlayMaps = {
     "Titik POI": poiLayer,
     "Batas Kabupaten/Kota": kabupatenBoundaryLayer,
     "Pemetaan Desa (Komoditas)": filteredGeojsonLayer,
   };
+  layerControl = L.control.layers(null, overlayMaps).addTo(map);
 
-  layerControl = L.control.layers(null, overlayMaps).addTo(map); // Panggil fungsi untuk menambahkan legenda
+  // 6. Tambahkan Legenda
   addLegend();
 }
 
-// FUNGSI PLOTTING SEMUA POI
-function updatePoiMarkers() {
+// FUNGSI PLOTTING POI YANG HANYA BERADA DI DESA YANG TERFILTER
+function updatePoiMarkers(filteredGeoJson) {
   poiLayer.clearLayers();
 
+  if (!filteredGeoJson || filteredGeoJson.features.length === 0) {
+    return;
+  }
+
+  // Buat daftar ID desa (WADMKD) yang saat ini terlihat di peta
+  const visibleDesaIDs = new Set(
+    filteredGeoJson.features.map((f) => f.properties.WADMKD)
+  );
+
   poiData.forEach((poi) => {
+    // Logika Kritis: Hanya tampilkan POI yang berada di desa yang terfilter
+    if (!visibleDesaIDs.has(poi.WADMKD)) {
+      return; // Lewati jika POI tidak ada di desa yang terfilter
+    }
+
     const lat = parseFloat(poi.latitude);
     const lon = parseFloat(poi.longitude);
     const name = poi.name || poi.category || "POI";
@@ -481,10 +547,10 @@ function updatePoiMarkers() {
       })
         .bindPopup(
           `
-            <b>${name}</b><br>
-            Kategori: ${poi.category || "N/A"}<br>
-            Lon: ${lon.toFixed(4)}, Lat: ${lat.toFixed(4)}
-          `
+            <b>${name}</b><br>
+            Kategori: ${poi.category || "N/A"}<br>
+            Desa: ${poi.WADMKD || "N/A"}
+          `
         )
         .addTo(poiLayer);
     }
@@ -520,8 +586,9 @@ function updateKPI(filteredGeoJson) {
 }
 
 // --- 5. LOGIKA UPDATE CHARTS (STACKED BAR CHART) ---
+// (Tidak ada perubahan signifikan di sini, fungsi sudah baik)
 function updateCharts(filteredGeoJson) {
-  const features = filteredGeoJson.features; // Hitung Komoditas berdasarkan keberadaan POI (hanya desa/kelurahan)
+  const features = filteredGeoJson.features;
 
   const komoditasCount = features
     .filter((f) => f.properties.TIPADM == 1)
@@ -535,23 +602,23 @@ function updateCharts(filteredGeoJson) {
         return acc;
       },
       { withPOI: {}, withoutPOI: {} }
-    ); // Ambil semua nama komoditas unik
+    );
 
   const allKomoditas = [
     ...new Set([
       ...Object.keys(komoditasCount.withPOI),
       ...Object.keys(komoditasCount.withoutPOI),
     ]),
-  ].sort(); // Data untuk Dengan POI Keuangan
+  ].sort();
 
   const dataWithPOI = allKomoditas.map((k) => komoditasCount.withPOI[k] || 0);
   const colorWithPOI = allKomoditas.map(
     (k) => CUSTOM_COLOR_MAP[k.toUpperCase()] || CUSTOM_COLOR_MAP.LAINNYA
-  ); // Data untuk Tanpa POI Keuangan
+  );
 
   const dataWithoutPOI = allKomoditas.map(
     (k) => komoditasCount.withoutPOI[k] || 0
-  ); // Warna abu-abu gelap untuk Tanpa POI Keuangan
+  );
   const colorWithoutPOI = allKomoditas.map((k) => COLOR_NO_POI);
 
   const traceWithPOI = {
@@ -563,7 +630,7 @@ function updateCharts(filteredGeoJson) {
     marker: {
       color: colorWithPOI,
     },
-    hoverinfo: "x+y", // Tampilkan label saat di-hover saja
+    hoverinfo: "x+y",
   };
 
   const traceWithoutPOI = {
@@ -575,7 +642,7 @@ function updateCharts(filteredGeoJson) {
     marker: {
       color: colorWithoutPOI,
     },
-    hoverinfo: "x+y", // Tampilkan label saat di-hover saja
+    hoverinfo: "x+y",
   };
 
   const layoutKomoditas = {
@@ -585,7 +652,7 @@ function updateCharts(filteredGeoJson) {
         size: 14,
       },
     },
-    barmode: "stack", // 🎯 PERUBAHAN UTAMA: Stacked Bar Chart
+    barmode: "stack",
     margin: {
       t: 40,
       l: 120,
@@ -609,15 +676,15 @@ function updateCharts(filteredGeoJson) {
 
   Plotly.newPlot(
     "chart-komoditas",
-    [traceWithoutPOI, traceWithPOI], // Menampilkan Tanpa POI (abu-abu) di bawah Dengan POI
+    [traceWithoutPOI, traceWithPOI],
     layoutKomoditas,
     {
       displayModeBar: false,
     }
-  ); // --- Chart POI (Tidak Berubah) ---
+  );
 
   const poiDataDesa = features
-    .filter((f) => f.properties.TIPADM == 1) // Hanya desa/kelurahan
+    .filter((f) => f.properties.TIPADM == 1)
     .map((f) => ({
       label: f.properties.WADMKD || f.properties.Kabupaten || "Wilayah",
       jumlah: f.properties.jumlah_poi || 0,
@@ -710,7 +777,7 @@ function updateDetailTable(properties) {
     titlePlaceholder.innerHTML =
       '<p class="mb-2">Silakan **klik** pada salah satu desa di peta untuk menampilkan detail atribut.</p>';
     return;
-  } // Jika properti tersedia tetapi TIPADM bukan 1, tampilkan pesan peringatan
+  }
 
   if (properties.TIPADM && properties.TIPADM != 1) {
     tableBody.innerHTML =
