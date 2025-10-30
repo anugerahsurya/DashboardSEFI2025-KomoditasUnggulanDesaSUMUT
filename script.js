@@ -45,7 +45,6 @@ const COLUMN_MAP = {
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
   jumlah_poi: "Jumlah POI Fasilitas Keuangan",
-  TIPADM: "Tipe Administrasi",
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
@@ -64,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ).addTo(map);
 
+  // poiLayer harus diinisialisasi untuk menampung marker POI
   poiLayer = L.featureGroup().addTo(map);
 
   loadData();
@@ -87,7 +87,7 @@ async function loadData() {
     poiData = await poiJsonRes.json();
 
     populateFilters();
-    applyFilter();
+    applyFilter(); // Memanggil applyFilter akan memanggil updateMap, yang pada gilirannya memanggil updatePoiMarkers
   } catch (error) {
     console.error("Gagal memuat data GeoJSON atau POI:", error);
     document.getElementById("filter-status").innerHTML =
@@ -95,9 +95,8 @@ async function loadData() {
   }
 }
 
-// --- 2. LOGIKA FILTER (Menggunakan Select Multiple) ---
+// --- 2. LOGIKA FILTER (GeoJSON) ---
 
-// Fungsi untuk mengisi kedua select
 function populateFilters() {
   const selectKab = document.getElementById("kabupaten-select");
   const selectKomoditas = document.getElementById("komoditas-select");
@@ -129,7 +128,6 @@ function populateFilters() {
   });
 }
 
-// FUNGSI UNTUK MEMBACA DAN MENERAPKAN NILAI FILTER
 function applyFilter() {
   const selectKabupaten = document.getElementById("kabupaten-select");
   const selectedKabupaten = Array.from(selectKabupaten.selectedOptions).map(
@@ -179,7 +177,6 @@ function applyFilter() {
   updateDetailTable(null);
 }
 
-// FUNGSI RESET FILTER
 function resetFilter() {
   Array.from(document.getElementById("kabupaten-select").options).forEach(
     (option) => (option.selected = false)
@@ -202,7 +199,7 @@ function styleFeature(feature) {
     fillColor: getColor(feature.properties.Prediksi),
     weight: 1.5,
     opacity: 1,
-    color: "black", // Border Hitam Solid
+    color: "black",
     dashArray: "",
     fillOpacity: 0.7,
   };
@@ -286,22 +283,22 @@ function updateMap(filteredGeoJson) {
     map.setView([2.0, 99.5], 8);
   }
 
-  updatePoiMarkers(filteredGeoJson); // Memanggil POI
+  // Panggil POI
+  updatePoiMarkers(); // Tidak memerlukan argumen filteredGeoJson lagi
 }
 
-// 🎯 FUNGSI UTAMA YANG DIPERBAIKI (POI) 🎯
-function updatePoiMarkers(filteredGeoJson) {
+// 🎯 FUNGSI UTAMA UNTUK PLOTTING SEMUA POI (TANPA FILTER) 🎯
+function updatePoiMarkers() {
   poiLayer.clearLayers();
 
-  // 🔥 PERBAIKAN: Ambil WADMKD dari SEMUA fitur yang terlihat (tanpa filter TIPADM=1)
-  const visibleWADMKD = new Set(
-    filteredGeoJson.features.map((f) => f.properties.WADMKD)
-  );
-
+  // Iterasi SEMUA data POI yang sudah dimuat secara global
   poiData.forEach((poi) => {
-    // Tampilkan POI yang WADMKD-nya ada di hasil filter wilayah
-    if (visibleWADMKD.has(poi.WADMKD)) {
-      L.circleMarker([poi.lat, poi.lon], {
+    const lat = parseFloat(poi.lat);
+    const lon = parseFloat(poi.lon);
+
+    // Hanya plot jika koordinat valid
+    if (!isNaN(lat) && !isNaN(lon)) {
+      L.circleMarker([lat, lon], {
         radius: 4,
         fillColor: MARKER_COLOR_POI,
         color: "#000",
