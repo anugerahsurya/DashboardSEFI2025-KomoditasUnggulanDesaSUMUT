@@ -1,91 +1,124 @@
-/* main.css */
+/* ================================================= */
+/* 🌐 MAIN.CSS - Styling Dashboard Komoditas & Peta  */
+/* ================================================= */
 
-/* Terapkan Font Poppins secara global */
+/* Global Font & Background */
 body {
   font-family: "Poppins", sans-serif;
-  background-color: #f8f9fa; /* Latar belakang abu-abu muda */
+  background-color: #f8f9fa; /* Abu-abu muda */
 }
 
-/* Kustomisasi Sidebar Filter */
+/* ================================================= */
+/* 🧭 SIDEBAR & FILTER SECTION */
+/* ================================================= */
+
 aside {
-  /* Meningkatkan padding agar tidak terlalu mepet */
   padding-top: 2rem !important;
   padding-bottom: 2rem !important;
 }
 
-/* Kustomisasi Box Filter agar terlihat simpel dan modern */
 .filter-section {
   border: none !important;
-  border-radius: 1rem !important; /* Sudut lebih melengkung */
+  border-radius: 1rem !important; /* Sudut membulat */
 }
 
-/* Tombol filter diubah ke warna danger agar serasi dengan branding OJK (merah) */
-.btn-danger {
-  background-color: #fd0d0d8f;
-  border-color: #fd0d0d8f;
+/* Tombol Terapkan Filter (warna merah khas OJK) */
+.btn-w-100 {
+  background-color: #c70039 !important;
+  border-color: #c70039 !important;
 }
 
-.btn-danger:hover {
-  background-color: #dc3545;
-  border-color: #dc3545;
+.btn-w-100:hover {
+  background-color: #a0002e !important;
+  border-color: #a0002e !important;
 }
 
-/* Select filter disesuaikan agar terlihat lebih rapi */
+/* Select Filter */
 #kabupaten-select {
   border-radius: 0.5rem;
 }
 
-/* Style dasar kotak scroll */
+/* ================================================= */
+/* ✅ CHECKBOX FILTER AREA */
+/* ================================================= */
+
 .checkbox-scroll {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid #ccc;
-  padding: 8px 10px; /* Tambahkan padding agar tidak terlalu mepet */
+  padding: 8px 10px;
   border-radius: 4px;
   margin-bottom: 12px;
 }
 
-/* Pastikan setiap item memiliki margin yang baik */
+/* Setiap item dalam daftar checkbox */
 .checkbox-scroll .form-check {
-  margin-bottom: 0.2rem; /* Sedikit dikurangi */
+  margin-bottom: 0.2rem;
   padding-right: 10px;
 }
 
-/* Atur ukuran dan posisi checkbox agar tidak memotong teks */
+/* Checkbox alignment */
 .checkbox-scroll .form-check-input {
-  float: none; /* Batalkan float default Bootstrap */
+  float: none;
   margin-left: 0;
-  margin-right: 8px; /* Beri jarak antara checkbox dan teks label */
+  margin-right: 8px;
   vertical-align: middle;
 }
 
-/* MODIFIKASI UTAMA: Pastikan label sejajar dan tidak ada wrapping pada teks */
+/* Label sejajar & tidak terpotong */
 .checkbox-scroll .form-check-label {
   display: inline-block;
   vertical-align: middle;
-  white-space: nowrap; /* Mencegah teks melipat ke bawah */
-  overflow: hidden; /* Sembunyikan jika label terlalu panjang */
-  text-overflow: ellipsis; /* Tambahkan elipsis jika disembunyikan */
-  max-width: 90%; /* Batasi lebar label agar tidak keluar dari container */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90%;
 }
 
-/* Styling untuk menghilangkan kotak (box) pada label Kabupaten/Kota */
+/* ================================================= */
+/* 🗺️ LEAFLET CUSTOM STYLES (Legenda & Label) */
+/* ================================================= */
+
+/* Kotak legenda (class .info) */
+.info {
+  padding: 6px 8px;
+  font: 14px/16px "Poppins", sans-serif;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+}
+
+.info h4 {
+  margin: 0 0 5px;
+  color: #333;
+  font-weight: 600;
+  font-size: 1em;
+}
+
+/* Kotak warna pada legenda */
+.legend i {
+  width: 18px;
+  height: 18px;
+  float: left;
+  margin-right: 8px;
+  opacity: 0.8;
+  border-radius: 3px;
+  border: 1px solid #ccc; /* Penting untuk warna putih */
+}
+
+/* Label kabupaten/kota (hilangkan box bawaan tooltip) */
 .kab-label-tooltip {
-  /* Menghilangkan latar belakang putih dan border bawaan Leaflet */
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  padding: 0; /* Pastikan tidak ada padding tambahan */
+  padding: 0;
 }
 
-/* Styling untuk teks label agar mudah dibaca */
+/* Teks label kabupaten/kota */
 .kab-label-tooltip .leaflet-tooltip-content {
-  /* 1. MENGGANTI FONT & MEMPERBESAR UKURAN */
-  font-family: "Poppins", sans-serif; /* Menggunakan Poppins */
-  font-size: 3em; /* Ukuran yang lebih besar agar terlihat jelas */
-  font-weight: 900; /* Dibuat lebih tebal */
-
-  /* 2. MENGGANTI SHADOW (Bukan Outline) */
-  color: #000000; /* Warna teks hitam */
+  font-family: "Poppins", sans-serif;
+  font-size: 3em;
+  font-weight: 900;
+  color: #000000;
   text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.7);
 }
