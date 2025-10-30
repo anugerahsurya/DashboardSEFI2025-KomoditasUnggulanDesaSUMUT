@@ -106,7 +106,7 @@ async function loadData() {
 
 // --- 2. LOGIKA FILTER (Menggunakan Select Multiple) ---
 
-// Fungsi yang dikembalikan untuk mengisi kedua select
+// Fungsi untuk mengisi kedua select
 function populateFilters() {
   const selectKab = document.getElementById("kabupaten-select");
   const selectKomoditas = document.getElementById("komoditas-select");
@@ -138,7 +138,7 @@ function populateFilters() {
   });
 }
 
-// Fungsi yang dikembalikan untuk membaca nilai dari select multiple
+// Fungsi untuk membaca nilai dari select multiple
 function applyFilter() {
   const selectKabupaten = document.getElementById("kabupaten-select");
   const selectedKabupaten = Array.from(selectKabupaten.selectedOptions).map(
