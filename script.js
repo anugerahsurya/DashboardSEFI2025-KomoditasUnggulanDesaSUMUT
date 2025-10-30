@@ -1,8 +1,9 @@
 // Data Global
 let geojsonData = null;
+let kabupatenData = null; // ⬅️ BARU: Data GeoJSON Kabupaten
 let poiData = [];
 let filteredGeojsonLayer = null;
-let countyBoundaryLayer = null; // ⬅️ BARU: Lapisan untuk Batas Kabupaten
+let kabupatenBoundaryLayer = null; // Lapisan untuk Batas Kabupaten
 let poiLayer = null;
 let selectedFeature = null;
 let map = null;
@@ -80,13 +81,16 @@ document.addEventListener("DOMContentLoaded", () => {
 // --- 1. FUNGSI MEMUAT DATA ASYNC ---
 async function loadData() {
   try {
-    const [geoJsonRes, poiJsonRes] = await Promise.all([
+    const [geoJsonRes, poiJsonRes, kabRes] = await Promise.all([
+      // ⬅️ DITAMBAH: fetch data kabupaten
       fetch("data_desa.geojson"),
       fetch("data_poi.json"),
+      fetch("data_kabupaten.geojson"),
     ]);
 
     geojsonData = await geoJsonRes.json();
     poiData = await poiJsonRes.json();
+    kabupatenData = await kabRes.json(); // ⬅️ Data Kabupaten dimuat
 
     populateFilters();
     applyFilter();
@@ -99,7 +103,7 @@ async function loadData() {
   } catch (error) {
     console.error("Gagal memuat data GeoJSON atau POI:", error);
     document.getElementById("filter-status").innerHTML =
-      '<span class="text-danger">❌ Gagal memuat data. Pastikan file `data_desa.geojson` dan `data_poi.json` tersedia.</span>';
+      '<span class="text-danger">❌ Gagal memuat data. Pastikan file `data_desa.geojson`, `data_poi.json`, dan `data_kabupaten.geojson` tersedia.</span>';
   }
 }
 
@@ -120,6 +124,12 @@ function populateFilters() {
   });
 
   selectKab.innerHTML = "";
+  // Tambahkan opsi 'Semua Kabupaten'
+  let optionAll = document.createElement("option");
+  optionAll.value = "";
+  optionAll.textContent = "Semua Kabupaten";
+  selectKab.appendChild(optionAll);
+
   [...kabList].sort().forEach((kab) => {
     const option = document.createElement("option");
     option.value = kab;
@@ -138,9 +148,10 @@ function populateFilters() {
 
 function applyFilter() {
   const selectKabupaten = document.getElementById("kabupaten-select");
-  const selectedKabupaten = Array.from(selectKabupaten.selectedOptions).map(
-    (option) => option.value
-  );
+  // Ambil semua pilihan, jika ada yang dipilih, gunakan yang dipilih. Jika tidak, anggap semua.
+  const selectedKabupaten = Array.from(selectKabupaten.selectedOptions)
+    .map((option) => option.value)
+    .filter((val) => val !== ""); // Hapus nilai kosong jika 'Semua Kabupaten' dipilih
 
   const selectKomoditas = document.getElementById("komoditas-select");
   const selectedKomoditas = Array.from(selectKomoditas.selectedOptions).map(
@@ -179,7 +190,8 @@ function applyFilter() {
     features: filteredFeatures,
   };
 
-  updateMap(filteredGeoJson);
+  // ⬅️ Kirim daftar kabupaten yang dipilih untuk memfilter batas kabupaten
+  updateMap(filteredGeoJson, selectedKabupaten);
   updateKPI(filteredGeoJson);
   updateCharts(filteredGeoJson);
   updateDetailTable(null);
@@ -189,6 +201,12 @@ function resetFilter() {
   Array.from(document.getElementById("kabupaten-select").options).forEach(
     (option) => (option.selected = false)
   );
+  // Pilih opsi 'Semua Kabupaten' setelah reset
+  const optionAll = document.querySelector(
+    "#kabupaten-select option[value='']"
+  );
+  if (optionAll) optionAll.selected = true;
+
   Array.from(document.getElementById("komoditas-select").options).forEach(
     (option) => (option.selected = false)
   );
@@ -207,74 +225,55 @@ function styleFeature(feature) {
     fillColor: getColor(feature.properties.Prediksi),
     weight: 1.5,
     opacity: 1,
-    color: "black", // Border Hitam Solid
+    color: "black", // Border Hitam Solid (Batas Desa)
     dashArray: "",
     fillOpacity: 0.25, // ⬅️ DIUBAH: Transparansi 25% untuk desa
   };
 }
 
-// 🎯 FUNGSI BARU: Membuat dan Menata Batas Kabupaten
-function createCountyBoundaries(geojson) {
-  // Gunakan fitur yang terfilter untuk simulasi batas luar kabupaten
-  const countyFeatures = {};
+// 🎯 FUNGSI BARU: Menggambar Batas Kabupaten/Kota dari GeoJSON terpisah
+function drawKabupatenBoundaries(selectedKabs) {
+  if (!kabupatenData) return;
 
-  geojson.features.forEach((f) => {
-    const kab = f.properties.Kabupaten;
-    if (!countyFeatures[kab]) {
-      // Asumsi untuk visualisasi, kita hanya perlu satu fitur per kabupaten
-      countyFeatures[kab] = {
-        type: "Feature",
-        properties: { Kabupaten: kab },
-        geometry: f.geometry, // Ini tidak akan menggabungkan geometri, hanya memilih satu
-      };
-    }
-  });
-
-  const countyGeoJson = {
-    type: "FeatureCollection",
-    features: Object.values(countyFeatures),
-  };
-
-  if (countyBoundaryLayer) {
-    map.removeLayer(countyBoundaryLayer);
+  if (kabupatenBoundaryLayer) {
+    map.removeLayer(kabupatenBoundaryLayer);
   }
 
-  // Lapisan Batas Kabupaten (Simulasi Visual)
-  // Fitur disetel agar fill-nya transparan, tetapi batas luarnya tebal
-  countyBoundaryLayer = L.geoJson(geojson, {
-    // Gunakan geojson lengkap
+  // Filter data kabupaten berdasarkan filter desa/kabupaten yang aktif
+  const filteredKabFeatures = kabupatenData.features.filter((f) => {
+    // Asumsi kolom nama kabupaten di data kabupaten adalah 'Kabupaten'
+    const kabName = f.properties.Kabupaten || "";
+    // Jika tidak ada filter kabupaten (selectedKabs.length === 0), tampilkan semua.
+    // Jika ada, tampilkan yang sesuai.
+    return selectedKabs.length === 0 || selectedKabs.includes(kabName);
+  });
+
+  const filteredKabData = {
+    type: "FeatureCollection",
+    features: filteredKabFeatures,
+  };
+
+  kabupatenBoundaryLayer = L.geoJson(filteredKabData, {
     style: function (feature) {
       return {
         fillColor: "transparent",
-        weight: 3, // ⬅️ Batas Lebih Tebal
+        weight: 4, // Batas Sangat Tebal (Batas Kabupaten)
         opacity: 1,
-        color: "#000000", // ⬅️ Batas Hitam Solid
-        fillOpacity: 0.0, // ⬅️ Fill Benar-benar Transparan
+        color: "#000000", // Batas Hitam Solid
+        fillOpacity: 0.0, // Fill Benar-benar Transparan (100% border opacity)
       };
     },
-    // Menangani interaksi mouse untuk batas kabupaten
     onEachFeature: function (feature, layer) {
-      layer.on({
-        mouseover: function (e) {
-          const l = e.target;
-          l.setStyle({ weight: 5, color: "#007BFF" });
-          l.bringToFront();
-          l.bindTooltip(
-            `Batas Kabupaten: ${feature.properties.Kabupaten || "N/A"}`,
-            { permanent: false, direction: "auto" }
-          ).openTooltip();
-        },
-        mouseout: function (e) {
-          countyBoundaryLayer.resetStyle(e.target);
-          e.target.closeTooltip();
-        },
-        // Tidak ada klik untuk lapisan batas ini agar fokus ke desa
+      const kabName = feature.properties.Kabupaten || "Kabupaten/Kota";
+      layer.bindTooltip(`Batas: ${kabName}`, {
+        permanent: false,
+        direction: "auto",
       });
     },
-  });
+  }).addTo(map);
 
-  // Tambahkan ke peta
-  countyBoundaryLayer.addTo(map);
+  // Pastikan batas kabupaten ada di atas semua poligon desa
+  kabupatenBoundaryLayer.bringToFront();
 }
 
 function highlightFeature(e) {
@@ -292,6 +291,8 @@ function highlightFeature(e) {
       layer.bringToFront();
     }
   }
+  // Pastikan batas kabupaten tetap di atas desa yang sedang di-hover
+  if (kabupatenBoundaryLayer) kabupatenBoundaryLayer.bringToFront();
 
   const popupContent = `
         <b>Kabupaten:</b> ${props.Kabupaten || "N/A"}<br>
@@ -338,15 +339,15 @@ function onEachFeature(feature, layer) {
   });
 }
 
-function updateMap(filteredGeoJson) {
+function updateMap(filteredGeoJson, selectedKabs) {
+  // ⬅️ Menerima filter kabupaten
   if (filteredGeojsonLayer) {
     map.removeLayer(filteredGeojsonLayer);
     selectedFeature = null;
   }
 
-  if (countyBoundaryLayer) {
-    // ⬅️ Hapus lapisan batas kabupaten jika ada
-    map.removeLayer(countyBoundaryLayer);
+  if (kabupatenBoundaryLayer) {
+    map.removeLayer(kabupatenBoundaryLayer);
   }
 
   if (layerControl) {
@@ -364,19 +365,14 @@ function updateMap(filteredGeoJson) {
 
   updatePoiMarkers();
 
-  // ⬅️ Panggil fungsi untuk membuat batas kabupaten
-  createCountyBoundaries(filteredGeoJson);
-
-  // Pastikan batas kabupaten ada di atas desa
-  if (countyBoundaryLayer) {
-    countyBoundaryLayer.bringToFront();
-  }
+  // ⬅️ Panggil fungsi untuk menggambar batas kabupaten dari data baru dan terfilter
+  drawKabupatenBoundaries(selectedKabs);
 
   // Definisikan overlayMaps BARU
   const overlayMaps = {
     "Titik POI": poiLayer,
-    "Batas Kabupaten/Kota": countyBoundaryLayer, // ⬅️ Tambahkan kontrol untuk Batas Kabupaten
-    "Pemetaan Desa (Komoditas)": filteredGeojsonLayer, // ⬅️ Ganti nama agar lebih jelas
+    "Batas Kabupaten/Kota": kabupatenBoundaryLayer, // ⬅️ Gunakan lapisan batas kabupaten yang baru
+    "Pemetaan Desa (Komoditas)": filteredGeojsonLayer, // Ganti nama agar lebih jelas
   };
 
   // Base layer sudah ditambahkan di DOMContentLoaded, jadi biarkan layer control hanya mengelola overlay
