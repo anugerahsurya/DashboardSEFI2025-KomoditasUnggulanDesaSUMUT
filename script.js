@@ -45,7 +45,7 @@ const COLUMN_MAP = {
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
   jumlah_poi: "Jumlah POI Fasilitas Keuangan",
-  TIPADM: "Tipe Administrasi",
+  TIPADM: "Tipe Administrasi", // Tambahkan TIPADM untuk referensi detail
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
@@ -105,7 +105,6 @@ function populateFilters() {
   const kabList = new Set();
   const komoditasList = new Set();
 
-  // Mengambil semua nilai dari semua fitur (tanpa filter TIPADM)
   geojsonData.features.forEach((f) => {
     kabList.add(f.properties.Kabupaten);
     if (f.properties.Prediksi) {
@@ -142,17 +141,17 @@ function applyFilter() {
     (option) => option.value
   );
 
-  // Filter dimulai dari SEMUA fitur (tidak ada filter implisit)
+  // Mulai dari semua fitur (tidak ada filter TIPADM implisit di sini)
   let filteredFeatures = geojsonData.features;
 
-  // 1️⃣ Filter Kabupaten
+  // 1️⃣ Filter Kabupaten (Berdasarkan Pilihan User)
   if (selectedKabupaten.length > 0) {
     filteredFeatures = filteredFeatures.filter((f) =>
       selectedKabupaten.includes(f.properties.Kabupaten)
     );
   }
 
-  // 2️⃣ Filter Komoditas
+  // 2️⃣ Filter Komoditas (Berdasarkan Pilihan User)
   if (selectedKomoditas.length > 0) {
     filteredFeatures = filteredFeatures.filter((f) =>
       selectedKomoditas.includes(f.properties.Prediksi)
@@ -220,7 +219,6 @@ function styleFeature(feature) {
 function highlightFeature(e) {
   const layer = e.target;
 
-  // Pastikan layer yang di-highlight bukan yang sedang dipilih
   if (layer !== selectedFeature) {
     layer.setStyle({
       weight: 3,
@@ -233,7 +231,6 @@ function highlightFeature(e) {
     }
   }
 
-  // Tampilkan tooltip sederhana
   const props = layer.feature.properties;
   layer
     .bindTooltip(
@@ -246,7 +243,6 @@ function highlightFeature(e) {
 function resetHighlight(e) {
   const layer = e.target;
   if (layer !== selectedFeature) {
-    // Kembalikan gaya ke default
     filteredGeojsonLayer.resetStyle(layer);
   }
 }
@@ -255,7 +251,7 @@ function resetHighlight(e) {
 function zoomToFeature(e) {
   const layer = e.target;
 
-  // 1. Reset gaya fitur yang sebelumnya dipilih (jika ada)
+  // 1. Reset gaya fitur yang sebelumnya dipilih
   if (selectedFeature) {
     filteredGeojsonLayer.resetStyle(selectedFeature);
   }
@@ -263,7 +259,7 @@ function zoomToFeature(e) {
   // 2. Terapkan gaya 'selected' pada fitur baru
   layer.setStyle({
     weight: 5,
-    color: "#007BFF", // Biru terang untuk border
+    color: "#007BFF", // Biru terang
     dashArray: "",
     fillOpacity: 0.7,
   });
@@ -289,7 +285,7 @@ function onEachFeature(feature, layer) {
 
 // Fungsi utama untuk mengupdate peta
 function updateMap(filteredGeoJson) {
-  // 1. Hapus layer GeoJSON lama (jika ada)
+  // 1. Hapus layer GeoJSON lama
   if (filteredGeojsonLayer) {
     map.removeLayer(filteredGeojsonLayer);
     selectedFeature = null; // Reset fitur yang dipilih
@@ -305,11 +301,10 @@ function updateMap(filteredGeoJson) {
   if (filteredGeojsonLayer.getLayers().length > 0) {
     map.fitBounds(filteredGeojsonLayer.getBounds());
   } else {
-    // Fallback jika tidak ada fitur (misalnya, reset view)
     map.setView([2.0, 99.5], 8);
   }
 
-  // 4. Update POI Markers (jika perlu)
+  // 4. Update POI Markers
   updatePoiMarkers(filteredGeoJson);
 }
 
@@ -317,12 +312,15 @@ function updateMap(filteredGeoJson) {
 function updatePoiMarkers(filteredGeoJson) {
   poiLayer.clearLayers();
 
+  // Hanya ambil WADMKD dari fitur TIPADM=1 yang terlihat
   const visibleWADMKD = new Set(
-    filteredGeoJson.features.map((f) => f.properties.WADMKD)
+    filteredGeoJson.features
+      .filter((f) => f.properties.TIPADM == 1)
+      .map((f) => f.properties.WADMKD)
   );
 
   poiData.forEach((poi) => {
-    // Hanya tampilkan POI yang WADMKD-nya ada di hasil filter
+    // Hanya tampilkan POI yang WADMKD-nya ada di hasil filter TIPADM=1
     if (visibleWADMKD.has(poi.WADMKD)) {
       L.circleMarker([poi.lat, poi.lon], {
         radius: 4,
@@ -338,13 +336,19 @@ function updatePoiMarkers(filteredGeoJson) {
   });
 }
 
-// --- 4. LOGIKA UPDATE KPI ---
+// --- 4. LOGIKA UPDATE KPI (Disesuaikan untuk TIPADM = 1) ---
 function updateKPI(filteredGeoJson) {
-  const totalWilayah = filteredGeoJson.features.length;
+  // 🎯 Filter fitur GeoJSON hanya yang memiliki TIPADM = 1
+  const desaFeatures = filteredGeoJson.features.filter(
+    (f) => f.properties.TIPADM == 1
+  );
+
+  const totalWilayahDesa = desaFeatures.length;
   let wilayahPoiPositive = 0;
   let wilayahPoiZero = 0;
 
-  filteredGeoJson.features.forEach((f) => {
+  // Iterasi hanya pada fitur TIPADM=1 untuk menghitung POI
+  desaFeatures.forEach((f) => {
     const jumlahPoi = f.properties.jumlah_poi || 0;
     if (jumlahPoi > 0) {
       wilayahPoiPositive += 1;
@@ -353,16 +357,22 @@ function updateKPI(filteredGeoJson) {
     }
   });
 
+  // KPI 1: Total Desa (hanya TIPADM=1)
   document.getElementById("kpi-desa").textContent =
-    totalWilayah.toLocaleString("id-ID"); // Total semua wilayah
+    totalWilayahDesa.toLocaleString("id-ID");
+
+  // KPI 2: Desa dengan POI > 0 (hanya TIPADM=1)
   document.getElementById("kpi-poi").textContent =
-    wilayahPoiPositive.toLocaleString("id-ID"); // Wilayah dengan POI > 0
+    wilayahPoiPositive.toLocaleString("id-ID");
+
+  // KPI 3: Desa dengan POI = 0 (hanya TIPADM=1)
   document.getElementById("kpi-komoditas").textContent =
-    wilayahPoiZero.toLocaleString("id-ID"); // Wilayah dengan POI = 0
+    wilayahPoiZero.toLocaleString("id-ID");
 }
 
 // --- 5. LOGIKA UPDATE CHARTS ---
 function updateCharts(filteredGeoJson) {
+  // Charts menggunakan semua fitur yang difilter pengguna
   const features = filteredGeoJson.features;
 
   // CHART 1: Distribusi Komoditas
@@ -451,11 +461,10 @@ function formatNilai(key, value) {
   if (value === null || value === undefined) return "N/A";
 
   if (key === "LULC") {
-    // Pastikan nilai adalah numerik dan cari di map
     const lulcCode = parseInt(value);
     if (!isNaN(lulcCode) && LULC_ESRI_MAP[lulcCode]) {
       return LULC_ESRI_MAP[lulcCode];
-    } // Fallback jika kode LULC tidak ditemukan (akan menggunakan 99)
+    }
     return LULC_ESRI_MAP[99] + ` (Kode ${lulcCode})`;
   }
 
@@ -464,9 +473,9 @@ function formatNilai(key, value) {
   if (!isNaN(numericValue)) {
     if (key === "LUAS") {
       return `${numericValue.toFixed(2)} km\u00b2`;
-    } // Format angka desimal lainnya
+    }
     return numericValue.toFixed(2);
-  } // Jika non-numerik (string)
+  }
 
   return String(value);
 }
