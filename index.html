@@ -25,6 +25,20 @@
 
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 
+    <style>
+      .checkbox-scroll {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+      }
+      .checkbox-scroll .form-check {
+        margin-bottom: 4px;
+      }
+    </style>
+
     <link rel="stylesheet" href="main.css" />
   </head>
   <body>
@@ -84,34 +98,31 @@
           </h5>
           <div class="filter-section mb-4 p-3 bg-white rounded shadow-sm">
             <label
-              for="kabupaten-select"
+              for="kabupaten-filter-list"
               class="form-label fw-bold mb-2 text-dark"
               >Pilih Kabupaten/Kota</label
             >
-            <select
-              id="kabupaten-select"
-              class="form-select mb-3"
-              multiple
-              size="10"
-            ></select>
+            <div id="kabupaten-filter-list" class="checkbox-scroll"></div>
 
             <label
-              for="komoditas-select"
+              for="komoditas-filter-list"
               class="form-label fw-bold mb-2 text-dark"
               >Pilih Komoditas Unggulan</label
             >
-            <select
-              id="komoditas-select"
-              class="form-select mb-3"
-              multiple
-              size="5"
-            ></select>
+            <div id="komoditas-filter-list" class="checkbox-scroll"></div>
+
             <button
               id="apply-filter-btn"
-              class="btn w-100 fw-bold"
+              class="btn w-100 mb-2 fw-bold"
               style="background-color: #c70039; color: white"
             >
               Terapkan Filter
+            </button>
+            <button
+              id="reset-filter-btn"
+              class="btn btn-outline-secondary w-100 fw-bold"
+            >
+              Reset Filter
             </button>
             <small
               id="filter-status"
@@ -121,18 +132,16 @@
         </aside>
 
         <main class="col-lg-9 col-md-12 p-3">
-          <h2 class="mb-3 text-dark fw-bold">
+          <h3 class="mb-3 text-dark fw-bold">
             Dashboard Komoditas Unggulan Desa dan POI Fasilitas Keuangan 2024
-          </h2>
+          </h3>
           <hr />
 
           <div class="row mb-4">
             <div class="col-md-4 mb-3">
               <div class="card shadow-sm h-100 border-success">
                 <div class="card-body">
-                  <h6 class="card-subtitle mb-2 text-muted">
-                    Total Desa Terpilih
-                  </h6>
+                  <h6 class="card-subtitle mb-2 text-muted">Jumlah Desa</h6>
                   <p class="card-text fs-3 fw-bold text-success" id="kpi-desa">
                     0
                   </p>
@@ -178,7 +187,7 @@
             <div class="col-lg-6 mb-3">
               <div class="card shadow-sm h-100">
                 <div class="card-header">
-                  Jumlah Desa Berdasarkan Jenis Komoditas
+                  Jumlah Desa Berdasarkan Jenis Komoditas Unggulan
                 </div>
                 <div class="card-body">
                   <div id="chart-komoditas" style="height: 350px"></div>
@@ -188,7 +197,7 @@
             <div class="col-lg-6 mb-3">
               <div class="card shadow-sm h-100">
                 <div class="card-header">
-                  10 Desa dengan Jumlah POI Fasilitas Keuangan Terbanyak
+                  Top 10 Desa dengan POI Fasilitas Keuangan Terbanyak
                 </div>
                 <div class="card-body">
                   <div id="chart-poi" style="height: 350px"></div>
@@ -199,19 +208,19 @@
           <hr />
 
           <section>
-            <h2 class="mb-3">Keterangan Desa Terpilih</h2>
+            <h2 class="mb-3">Detail Data Desa</h2>
             <div id="detail-table-container">
               <div id="detail-title-placeholder">
                 <p class="mb-2">
                   Silakan <b>klik</b> pada salah satu desa di peta untuk
-                  menampilkan detail atribut.
+                  menampilkan detail Variabel.
                 </p>
               </div>
               <div class="table-responsive">
                 <table class="table table-bordered table-striped">
                   <thead class="table-secondary">
                     <tr>
-                      <th>Atribut</th>
+                      <th>Variabel</th>
                       <th>Nilai</th>
                     </tr>
                   </thead>

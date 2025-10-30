@@ -54,7 +54,7 @@ const COLUMN_MAP = {
   Slope: "Kemiringan Lahan (Derajat)",
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
-  jumlah_poi: "Jumlah POI Lokal",
+  jumlah_poi: "Jumlah POI Fasilitas Keuangan",
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
@@ -78,7 +78,10 @@ document.addEventListener("DOMContentLoaded", () => {
   loadData();
   document
     .getElementById("apply-filter-btn")
-    .addEventListener("click", applyFilter);
+    .addEventListener("click", applyFilter); // Listener untuk Tombol Reset
+  document
+    .getElementById("reset-filter-btn")
+    .addEventListener("click", resetFilter);
 });
 
 // --- 1. FUNGSI MEMUAT DATA ASYNC ---
@@ -90,7 +93,7 @@ async function loadData() {
     ]);
 
     geojsonData = await geoJsonRes.json();
-    poiData = await poiJsonRes.json(); // Memuat filter Kabupaten dan Komoditas
+    poiData = await poiJsonRes.json();
 
     populateFilters();
     applyFilter();
@@ -103,10 +106,10 @@ async function loadData() {
 
 // --- 2. LOGIKA FILTER (Pengganti Pandas/GeoPandas Filter) ---
 
-// Fungsi baru untuk mengisi kedua filter
+// Fungsi yang diubah untuk mengisi kedua filter dengan checkbox
 function populateFilters() {
-  const selectKab = document.getElementById("kabupaten-select");
-  const selectKomoditas = document.getElementById("komoditas-select");
+  const containerKab = document.getElementById("kabupaten-filter-list");
+  const containerKomoditas = document.getElementById("komoditas-filter-list");
 
   const kabList = new Set();
   const komoditasList = new Set();
@@ -116,36 +119,44 @@ function populateFilters() {
     if (f.properties.Prediksi) {
       komoditasList.add(f.properties.Prediksi);
     }
-  }); // Populate Kabupaten
+  }); // Populate Kabupaten Checkbox
 
-  selectKab.innerHTML = "";
+  containerKab.innerHTML = "";
   [...kabList].sort().forEach((kab) => {
-    const option = document.createElement("option");
-    option.value = kab;
-    option.textContent = kab;
-    selectKab.appendChild(option);
-  }); // Populate Komoditas
+    const id = `kab-${kab.replace(/\s/g, "")}`;
+    containerKab.innerHTML += `
+      <div class="form-check">
+        <input class="form-check-input kabupaten-checkbox" type="checkbox" value="${kab}" id="${id}">
+        <label class="form-check-label" for="${id}">
+          ${kab}
+        </label>
+      </div>
+    `;
+  }); // Populate Komoditas Checkbox
 
-  selectKomoditas.innerHTML = "";
+  containerKomoditas.innerHTML = "";
   [...komoditasList].sort().forEach((komoditas) => {
-    const option = document.createElement("option");
-    option.value = komoditas;
-    option.textContent = komoditas;
-    selectKomoditas.appendChild(option);
+    const id = `kom-${komoditas.replace(/\s/g, "")}`;
+    containerKomoditas.innerHTML += `
+      <div class="form-check">
+        <input class="form-check-input komoditas-checkbox" type="checkbox" value="${komoditas}" id="${id}">
+        <label class="form-check-label" for="${id}">
+          ${komoditas}
+        </label>
+      </div>
+    `;
   });
 }
 
-// Fungsi applyFilter yang diperbarui
+// Fungsi yang diubah untuk membaca nilai dari checkbox
 function applyFilter() {
-  const selectKabupaten = document.getElementById("kabupaten-select");
-  const selectedKabupaten = Array.from(selectKabupaten.selectedOptions).map(
-    (option) => option.value
-  );
+  const selectedKabupaten = Array.from(
+    document.querySelectorAll(".kabupaten-checkbox:checked")
+  ).map((checkbox) => checkbox.value);
 
-  const selectKomoditas = document.getElementById("komoditas-select");
-  const selectedKomoditas = Array.from(selectKomoditas.selectedOptions).map(
-    (option) => option.value
-  );
+  const selectedKomoditas = Array.from(
+    document.querySelectorAll(".komoditas-checkbox:checked")
+  ).map((checkbox) => checkbox.value);
 
   let filteredFeatures = geojsonData.features; // Filter Kabupaten
 
@@ -184,6 +195,18 @@ function applyFilter() {
   updateKPI(filteredGeoJson);
   updateCharts(filteredGeoJson);
   updateDetailTable(null); // Reset detail
+}
+
+// Fungsi baru untuk mereset filter
+function resetFilter() {
+  // Uncheck semua checkbox
+  document
+    .querySelectorAll(".kabupaten-checkbox, .komoditas-checkbox")
+    .forEach((checkbox) => {
+      checkbox.checked = false;
+    }); // Terapkan filter kembali (akan menampilkan semua data)
+
+  applyFilter();
 }
 
 // --- 3. LOGIKA UPDATE PETA (Pengganti Folium/Streamlit-Folium) ---
@@ -466,7 +489,7 @@ function updateDetailTable(properties) {
     return;
   }
 
-  titlePlaceholder.innerHTML = `<p class="mb-2"><strong>Detail untuk Desa/Kelurahan: ${
+  titlePlaceholder.innerHTML = `<p class="mb-2"><strong>Desa : ${
     properties.WADMKD || "-"
   }</strong></p>`;
 
