@@ -25,15 +25,15 @@ const CHART_COLOR_WITH_POI = "#4682B4"; // Steel Blue
 const CHART_COLOR_WITHOUT_POI = "#CC3333"; // Merah Calmer
 
 const LULC_ESRI_MAP = {
-  1: "Badan Air",
-  2: "Pohon / Hutan",
-  3: "Rumput/Padang Rumput",
-  4: "Vegetasi Tergenang/Lahan Basah",
-  5: "Tanaman Pertanian",
-  6: "Semak dan Belukar",
-  7: "Area Terbangun",
-  8: "Lahan Terbuka/Tidak Bervegetasi",
-  99: "Lainnya/Tidak Didefinisikan",
+  0: "Badan Air",
+  1: "Pohon / Hutan",
+  2: "Rumput/Padang Rumput",
+  3: "Vegetasi Tergenang/Lahan Basah",
+  4: "Tanaman Pertanian",
+  5: "Semak dan Belukar",
+  6: "Area Terbangun",
+  7: "Lahan Terbuka/Tidak Bervegetasi",
+  8: "Lainnya/Tidak Didefinisikan",
 };
 
 // Mapping Kolom
@@ -48,7 +48,7 @@ const COLUMN_MAP = {
   NDVI: "Normalized Difference Vegetation Index (NDVI)",
   NDWI: "Normalized Difference Water Index (NDWI)",
   RVI: "Ratio Vegetation Index (RVI)",
-  LULC: "Land Use/Land Cover (Tutupan Lahan)",
+  LULC: "Land Use/Land Cover (Tutupan Lahan) Dominan",
   Elevation: "Ketinggian (mdpl)",
   Slope: "Kemiringan Lahan (Derajat)",
   Rainfall: "Curah Hujan",
