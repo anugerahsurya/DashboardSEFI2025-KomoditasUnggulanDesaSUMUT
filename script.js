@@ -54,7 +54,7 @@ const COLUMN_MAP = {
   Slope: "Kemiringan Lahan (Derajat)",
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
-  jumlah_poi: "Jumlah POI Fasilitas Keuangan"
+  jumlah_poi: "Jumlah POI Fasilitas Keuangan",
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
@@ -332,10 +332,6 @@ function highlightFeature(e) {
   const layer = e.target;
   const props = layer.feature.properties;
 
-  if (props.TIPADM && props.TIPADM != 1) {
-    return;
-  }
-
   if (layer !== selectedFeature) {
     layer.setStyle({
       weight: 3,
@@ -367,9 +363,6 @@ function highlightFeature(e) {
 
 function resetHighlight(e) {
   const layer = e.target;
-  if (layer.feature.properties.TIPADM && layer.feature.properties.TIPADM != 1) {
-    return;
-  }
 
   if (layer !== selectedFeature) {
     if (filteredGeojsonLayer) {
@@ -381,15 +374,6 @@ function resetHighlight(e) {
 function zoomToFeature(e) {
   const layer = e.target;
   const props = layer.feature.properties;
-
-  if (props.TIPADM && props.TIPADM != 1) {
-    if (selectedFeature) {
-      filteredGeojsonLayer.resetStyle(selectedFeature);
-    }
-    selectedFeature = null;
-    updateDetailTable(null);
-    return;
-  }
 
   if (selectedFeature) {
     filteredGeojsonLayer.resetStyle(selectedFeature);
@@ -555,51 +539,59 @@ function updatePoiMarkers(filteredGeoJson) {
   });
 }
 
-// --- 4. LOGIKA UPDATE KPI ---
 function updateKPI(filteredGeoJson) {
   const features = filteredGeoJson.features;
 
+  // 1. Desa/Kelurahan Saja
   const desaFeatures = features.filter((f) => f.properties.TIPADM == 1);
 
+  // 2. Semua Wilayah yang Memiliki POI (TIPADM berapapun)
   let wilayahPoiPositive = 0;
-  let wilayahPoiZero = 0;
-
-  desaFeatures.forEach((f) => {
+  features.forEach((f) => {
     const jumlahPoi = f.properties.jumlah_poi || 0;
     if (jumlahPoi > 0) {
       wilayahPoiPositive += 1;
-    } else {
-      wilayahPoiZero += 1;
     }
   });
 
+  // 3. Desa/Kelurahan Saja yang TIDAK Memiliki POI
+  let desaPoiZero = 0;
+  desaFeatures.forEach((f) => {
+    const jumlahPoi = f.properties.jumlah_poi || 0;
+    if (jumlahPoi === 0) {
+      desaPoiZero += 1;
+    }
+  });
+
+  // Memperbarui tampilan
+  // kpi-desa: TOTAL Desa/Kelurahan yang TERFILTER
   document.getElementById("kpi-desa").textContent =
     desaFeatures.length.toLocaleString("id-ID");
 
+  // kpi-poi: Wilayah Terfilter (Desa/Non-Desa) DENGAN POI
   document.getElementById("kpi-poi").textContent =
     wilayahPoiPositive.toLocaleString("id-ID");
 
+  // kpi-komoditas: Desa/Kelurahan Terfilter TANPA POI
   document.getElementById("kpi-komoditas").textContent =
-    wilayahPoiZero.toLocaleString("id-ID");
+    desaPoiZero.toLocaleString("id-ID");
 }
 
 // --- 5. LOGIKA UPDATE CHARTS ---
 function updateCharts(filteredGeoJson) {
   const features = filteredGeoJson.features;
 
-  const komoditasCount = features
-    .filter((f) => f.properties.TIPADM == 1)
-    .reduce(
-      (acc, f) => {
-        const komoditas = f.properties.Prediksi || "LAINNYA";
-        const hasPoi = (f.properties.jumlah_poi || 0) > 0;
-        const key = hasPoi ? "withPOI" : "withoutPOI";
+  const komoditasCount = features.reduce(
+    (acc, f) => {
+      const komoditas = f.properties.Prediksi || "LAINNYA";
+      const hasPoi = (f.properties.jumlah_poi || 0) > 0;
+      const key = hasPoi ? "withPOI" : "withoutPOI";
 
-        acc[key][komoditas] = (acc[key][komoditas] || 0) + 1;
-        return acc;
-      },
-      { withPOI: {}, withoutPOI: {} }
-    );
+      acc[key][komoditas] = (acc[key][komoditas] || 0) + 1;
+      return acc;
+    },
+    { withPOI: {}, withoutPOI: {} }
+  );
 
   const allKomoditas = [
     ...new Set([
@@ -691,7 +683,6 @@ function updateCharts(filteredGeoJson) {
   );
 
   const poiDataDesa = features
-    .filter((f) => f.properties.TIPADM == 1)
     .map((f) => ({
       label: f.properties.WADMKD || f.properties.Kabupaten || "Wilayah",
       jumlah: f.properties.jumlah_poi || 0,
@@ -780,13 +771,13 @@ function updateDetailTable(properties) {
     return;
   }
 
-  if (properties.TIPADM && properties.TIPADM != 1) {
-    tableBody.innerHTML =
-      '<tr><td colspan="2">Data ini bukan Desa/Kelurahan (TIPADM $\\neq$ 1). Detail tidak ditampilkan.</td></tr>';
-    titlePlaceholder.innerHTML =
-      '<p class="mb-2 text-danger">Wilayah **non-Desa/Kelurahan** terpilih.</p>';
-    return;
-  }
+  // if (properties.TIPADM && properties.TIPADM != 1) {
+  //   tableBody.innerHTML =
+  //     '<tr><td colspan="2">Data ini bukan Desa/Kelurahan (TIPADM $\\neq$ 1). Detail tidak ditampilkan.</td></tr>';
+  //   titlePlaceholder.innerHTML =
+  //     '<p class="mb-2 text-danger">Wilayah **non-Desa/Kelurahan** terpilih.</p>';
+  //   return;
+  // }
 
   titlePlaceholder.innerHTML = `<p class="mb-2"><strong>Desa : ${
     properties.WADMKD || "-"

@@ -122,6 +122,23 @@ aside {
   border-radius: 1rem !important;
 }
 
+/* Tombol Terapkan Filter berwarna merah */
+#apply-filter-btn {
+  background-color: #dc3545; /* Merah khas Bootstrap */
+  border: 2px solid #b02a37; /* Warna border merah tua */
+  color: white;
+  width: 100%;
+  border-radius: 6px; /* Kotak agak lembut, ubah ke 0 jika mau kotak tajam */
+  font-weight: bold;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* Efek hover */
+#apply-filter-btn:hover {
+  background-color: #bb2d3b; /* Merah lebih gelap */
+  transform: scale(1.02);
+}
+
 /* Tombol Terapkan Filter (warna merah khas OJK) */
 .btn-w-100 {
   background-color: #c70039 !important;
