@@ -741,7 +741,7 @@ function formatNilai(key, value) {
   }
 
   if (key === "TIPADM") {
-    return value == 1 ? "Desa/Kelurahan" : String(value);
+    return value == 1 ? "Pedesaan" : "Perkotaan";
   }
 
   const numericValue = parseFloat(value);
