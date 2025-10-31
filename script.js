@@ -494,9 +494,9 @@ function updateMap(filteredGeoJson, selectedKabs) {
     map.removeControl(layerControl);
   }
   const overlayMaps = {
-    "Titik POI": poiLayer,
+    "POI Fasilitas Keuangan": poiLayer,
     "Batas Kabupaten/Kota": kabupatenBoundaryLayer,
-    "Pemetaan Desa (Komoditas)": filteredGeojsonLayer,
+    "Peta Komoditas Unggulan": filteredGeojsonLayer,
   };
   layerControl = L.control.layers(null, overlayMaps).addTo(map);
 

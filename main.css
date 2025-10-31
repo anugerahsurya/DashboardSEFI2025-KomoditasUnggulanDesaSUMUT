@@ -81,6 +81,34 @@ body {
   font-weight: 500;
 }
 
+/* Navigation Bar */
+
+/* 🔥 STYLING NAVBAR CUSTOM */
+.navbar-nav .nav-item {
+  /* Memberikan jarak horizontal antara item navigasi */
+  margin-left: 1em; /* Jarak yang ditambahkan ke kiri setiap item */
+  margin-right: 1em; /* Jarak yang ditambahkan ke kanan setiap item */
+}
+
+.navbar-nav .nav-link {
+  /* Gaya dasar untuk link */
+  padding-bottom: 0.5rem; /* Menjaga padding agar garis bawah tidak terlalu jauh */
+  transition: color 0.3s ease, border-bottom 0.3s ease; /* Transisi untuk efek hover */
+}
+
+/* 1. Gaya Hover untuk Link Non-Aktif (Dashboard) */
+.navbar-nav .nav-item:not(:has(.nav-link[style*="#c70039"])) .nav-link:hover {
+  color: #c70039 !important; /* Mengubah warna teks menjadi merah OJK saat di-hover */
+  /* Menambahkan garis bawah merah tipis saat di-hover */
+  border-bottom: 3px solid #c70039;
+}
+
+/* 2. Gaya Hover untuk Link Aktif (Home) - (Opsional, agar tetap terlihat aktif) */
+.navbar-nav .nav-item .nav-link[style*="#c70039"]:hover {
+  color: #a3002d !important; /* Sedikit lebih gelap dari warna aktif saat di-hover */
+  border-bottom-color: #a3002d !important; /* Menggelapkan garis bawah juga */
+}
+
 /* ================================================= */
 /* 🧭 SIDEBAR & FILTER SECTION */
 /* ================================================= */
