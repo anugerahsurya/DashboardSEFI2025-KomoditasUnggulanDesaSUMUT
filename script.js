@@ -41,6 +41,7 @@ const COLUMN_MAP = {
   Kabupaten: "Nama Kabupaten",
   WADMKC: "Nama Kecamatan",
   WADMKD: "Nama Desa",
+  TIPADM: "Tipe Administrasi",
   LUAS: "Luas Wilayah",
   EVI: "Enhanced Vegetation Index (EVI)",
   MNDWI: "Modified Normalized Difference Water Index (MNDWI)",
@@ -53,8 +54,7 @@ const COLUMN_MAP = {
   Slope: "Kemiringan Lahan (Derajat)",
   Rainfall: "Curah Hujan",
   Prediksi: "Komoditas Unggulan",
-  jumlah_poi: "Jumlah POI Fasilitas Keuangan",
-  TIPADM: "Tipe Administrasi",
+  jumlah_poi: "Jumlah POI Fasilitas Keuangan"
 };
 const DISPLAY_COLUMNS = Object.keys(COLUMN_MAP);
 
