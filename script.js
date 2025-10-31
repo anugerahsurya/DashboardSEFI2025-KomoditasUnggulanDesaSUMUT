@@ -757,7 +757,7 @@ function formatNilai(key, value) {
 
   if (!isNaN(numericValue)) {
     if (key === "LUAS") {
-      return `${numericValue.toFixed(2)} km\u00b2`;
+      return `${numericValue.toFixed(2)} m\u00b2`;
     }
     return numericValue.toFixed(2);
   }
