@@ -1,48 +1,65 @@
-const SHEET_URL =
-  "https://script.google.com/macros/s/AKfycbyNeBG-LGH6qxn-_5FZxfNDloXY50WnFgr3MuQNH9qpQ0lsbcfTWAqlRFWY7n6qGFQkaA/exec"; // Web App Apps Script terbaru
+// table.js
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
 
+const SUPABASE_URL = "https://zeksrlvgizvqjyjuagqj.supabase.co"; // ganti
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpla3NybHZnaXp2cWp5anVhZ3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzMTcxNDksImV4cCI6MjA3Nzg5MzE0OX0.fHbTVi4G9TV7PGFOLBGL3gpar-WUG9M_7LN_-o1AFn4"; // ganti
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const tableBody = document.getElementById("log-table");
+const refreshBtn = document.getElementById("refresh-btn");
+
+// --- Fungsi untuk load log ---
 async function loadLogs() {
-  const tableBody = document.querySelector("#log-table tbody");
-  tableBody.innerHTML =
-    '<tr><td colspan="8" class="text-center text-muted">🔄 Memuat data...</td></tr>';
+  tableBody.innerHTML = `<tr>
+      <td colspan="8" class="text-center text-muted">Memuat data aktivitas...</td>
+    </tr>`;
 
-  try {
-    const res = await fetch(SHEET_URL);
-    const data = await res.json();
+  const { data, error } = await supabase
+    .from("web_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100); // ambil 100 log terakhir
 
-    if (!data || data.length === 0) {
-      tableBody.innerHTML =
-        '<tr><td colspan="8" class="text-center text-muted">Belum ada aktivitas tercatat</td></tr>';
-      return;
-    }
-
-    const rows = data
-      .slice(-100) // tampilkan 100 data terakhir
-      .reverse() // dari terbaru ke terlama
-      .map(
-        (r, i) => `
-            <tr>
-              <td>${i + 1}</td>
-              <td>${new Date(r.timestamp).toLocaleString("id-ID")}</td>
-              <td><b>${r.event || "-"}</b></td>
-              <td class="text-break">${r.url || "-"}</td>
-              <td>${r.city || "-"}</td>
-              <td>${r.country || "-"}</td>
-              <td>${r.text || r.percent || r.state || "-"}</td>
-              <td>${r.seconds || "-"}</td>
-            </tr>
-          `
-      )
-      .join("");
-
-    tableBody.innerHTML = rows;
-  } catch (err) {
-    tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Gagal memuat data: ${err}</td></tr>`;
+  if (error) {
+    tableBody.innerHTML = `<tr>
+      <td colspan="8" class="text-center text-danger">Gagal memuat data</td>
+    </tr>`;
+    console.error(error);
+    return;
   }
+
+  if (!data.length) {
+    tableBody.innerHTML = `<tr>
+      <td colspan="8" class="text-center text-muted">Belum ada data</td>
+    </tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = "";
+
+  data.forEach((log, index) => {
+    const extra = log.extra || {};
+    const textOrInfo = extra.text || extra.id || "";
+    const duration = extra.seconds || "";
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${new Date(log.created_at).toLocaleString("id-ID")}</td>
+      <td>${log.event}</td>
+      <td>${log.url}</td>
+      <td>${log.city || "-"}</td>
+      <td>${log.country || "-"}</td>
+      <td>${textOrInfo}</td>
+      <td>${duration}</td>
+    `;
+    tableBody.appendChild(row);
+  });
 }
 
-// tombol refresh manual
-document.getElementById("refresh-btn").addEventListener("click", loadLogs);
+// --- Event refresh button ---
+refreshBtn.addEventListener("click", loadLogs);
 
-// load saat halaman dibuka
+// --- Load saat halaman dibuka ---
 window.addEventListener("load", loadLogs);
