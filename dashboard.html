@@ -49,7 +49,7 @@
       style="background-color: white; border-bottom: 3px solid #c70039"
     >
       <div class="container">
-        <a class="navbar-brand d-flex align-items-center" href="#">
+        <a class="navbar-brand d-flex align-items-center" href="index.html">
           <img src="Logo/logoOJK.png" alt="OJK Logo" height="40" class="me-3" />
           <div class="d-flex flex-column lh-sm">
             <span class="fw-bold text-dark fs-6">Otoritas Jasa Keuangan </span>
@@ -252,6 +252,71 @@
         </p>
       </div>
     </footer>
+    <!-- Tracking script -->
+    <script>
+      const TRACK_URL =
+        "https://script.google.com/macros/s/AKfycbxCq5HDoFhJkN6u2B9J7kJMZUH0Pt6dn6GQtGXiQIeTey4Ih23OzDbynlKZ8FICa0UlUg/exec";
+
+      async function logActivity(eventName, extra = {}) {
+        const payload = {
+          event: eventName,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          ...extra,
+        };
+
+        try {
+          const loc = await fetch("https://ipapi.co/json/").then((r) =>
+            r.json()
+          );
+          payload.city = loc.city;
+          payload.country = loc.country_name;
+        } catch (e) {
+          payload.city = "Unknown";
+        }
+
+        fetch(TRACK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      // --- aktivitas utama yang ditrack ---
+      window.addEventListener("load", () => {
+        logActivity("page_view");
+        window.__startTime = Date.now();
+      });
+
+      document.addEventListener("click", (e) => {
+        if (e.target.matches("button")) {
+          logActivity("button_click", { text: e.target.innerText });
+        }
+      });
+
+      window.addEventListener("scroll", () => {
+        const percent =
+          ((window.scrollY + window.innerHeight) / document.body.scrollHeight) *
+          100;
+        if (percent > 50 && !window.__halfScrolled) {
+          logActivity("scroll_depth", { percent: Math.round(percent) });
+          window.__halfScrolled = true;
+        }
+      });
+
+      document.addEventListener("copy", () => {
+        const copied = window.getSelection().toString().slice(0, 100);
+        if (copied) logActivity("copy_text", { text: copied });
+      });
+
+      window.addEventListener("beforeunload", () => {
+        if (window.__startTime) {
+          const duration = Math.round((Date.now() - window.__startTime) / 1000);
+          logActivity("session_duration", { seconds: duration });
+        }
+      });
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="script.js"></script>
   </body>
