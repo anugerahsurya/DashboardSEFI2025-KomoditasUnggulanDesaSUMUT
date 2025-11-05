@@ -18,37 +18,86 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
+
     <style>
+      body {
+        font-family: "Poppins", sans-serif;
+        background-color: #f8f9fa;
+      }
+
       .table-container {
         margin-top: 120px;
       }
+
       .table thead {
-        background-color: #c70039;
+        background: linear-gradient(90deg, #c70039, #e63946);
         color: white;
       }
+
+      .table-hover tbody tr:hover {
+        background-color: #ffe6eb;
+        transition: 0.3s;
+      }
+
       .refresh-btn {
         background-color: #c70039;
         color: white;
+        border-radius: 50px;
+        padding: 0.5rem 1.2rem;
+        font-weight: 500;
       }
+
       .refresh-btn:hover {
         background-color: #a3002f;
+        color: white;
+      }
+
+      h3 {
+        font-weight: 700;
+        color: #c70039;
+      }
+
+      footer {
+        background-color: #1a1a1a;
+        color: #f1f1f1;
+        font-size: 0.9rem;
+      }
+
+      .navbar-brand img {
+        height: 45px;
+      }
+
+      .table-container .table-responsive {
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      }
+
+      @media (max-width: 576px) {
+        .table-container {
+          margin-top: 100px;
+        }
+        h3 {
+          font-size: 1.25rem;
+        }
       }
     </style>
   </head>
+
   <body>
     <!-- Navbar -->
     <nav
-      class="navbar navbar-expand-lg navbar-light fixed-top shadow"
+      class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm"
       style="background-color: white; border-bottom: 3px solid #c70039"
     >
       <div class="container">
         <a class="navbar-brand d-flex align-items-center" href="index.html">
-          <img src="Logo/logoOJK.png" alt="OJK Logo" height="40" class="me-3" />
+          <img src="Logo/logoOJK.png" alt="OJK Logo" class="me-3" />
           <div class="d-flex flex-column lh-sm">
-            <span class="fw-bold text-dark fs-6">Otoritas Jasa Keuangan </span>
-            <small class="text-secondary" style="font-size: 0.8rem">
-              Provinsi Sumatera Utara
-            </small>
+            <span class="fw-bold text-dark fs-6">Otoritas Jasa Keuangan</span>
+            <small class="text-secondary" style="font-size: 0.8rem"
+              >Provinsi Sumatera Utara</small
+            >
           </div>
         </a>
 
@@ -80,9 +129,8 @@
                 class="nav-link fw-bold"
                 href="dbaccount.html"
                 style="color: #c70039; border-bottom: 3px solid #c70039"
+                >Activity Log</a
               >
-                Activity Log
-              </a>
             </li>
           </ul>
         </div>
@@ -92,9 +140,7 @@
     <!-- Tabel Log Aktivitas -->
     <div class="container table-container">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="fw-bold" style="color: #c70039">
-          <i class="bi bi-person-lines-fill"></i> Aktivitas Pengunjung
-        </h3>
+        <h3><i class="bi bi-person-lines-fill"></i> Aktivitas Pengunjung</h3>
         <button class="btn refresh-btn" id="refresh-btn">
           <i class="bi bi-arrow-clockwise"></i> Refresh Data
         </button>
@@ -125,9 +171,9 @@
       </div>
     </div>
 
-    <footer class="bg-dark text-white py-3">
+    <footer class="py-3 mt-5">
       <div class="container text-center">
-        <p class="mb-0" style="font-size: 0.9rem">
+        <p class="mb-0">
           © 2024 Otoritas Jasa Keuangan Provinsi Sumatera Utara. | Dashboard
           Komoditas Unggulan Desa dan POI Fasilitas Keuangan 2024.
         </p>
