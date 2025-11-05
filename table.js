@@ -1,4 +1,5 @@
-const SHEET_URL = "PASTE_DISINI_URL_DEPLOY_BARU"; // Web App Apps Script terbaru
+const SHEET_URL =
+  "https://script.google.com/macros/s/AKfycbyNeBG-LGH6qxn-_5FZxfNDloXY50WnFgr3MuQNH9qpQ0lsbcfTWAqlRFWY7n6qGFQkaA/exec"; // Web App Apps Script terbaru
 
 async function loadLogs() {
   const tableBody = document.querySelector("#log-table tbody");
